@@ -50,6 +50,7 @@ app.add_middleware(
 # ENV / API KEYS (DO NOT hardcode production keys)
 # ═══════════════════════════════════════════════════════
 ANTHROPIC_KEY = os.getenv("ANTHROPIC_API_KEY", "").strip()
+ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-3-7-sonnet-20250219").strip()
 LIGHTX_KEY = os.getenv("LIGHTX_API_KEY", "").strip()
 
 # Keep model configurable so you can change without redeploying
