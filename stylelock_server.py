@@ -1,29 +1,23 @@
 """
-StyleLock AI — Backend Server (Robust + Debuggable)
-===================================================
-One endpoint receives a selfie, orchestrates:
-Claude Vision + Scoring Engine + Image Host Upload + LightX
-Returns 3 hairstyle previews with Cut Cards.
+StyleLock AI — Backend Server
+==============================
+This is the brain of the app. One endpoint receives a selfie,
+orchestrates Claude Vision + Scoring Engine + LightX, and returns
+3 hairstyle previews with Cut Cards.
 
 DEPLOY: Railway, Render, or any Python hosting
 SETUP:
   pip install fastapi uvicorn httpx python-multipart
 
-RUN (local):
-  python -m uvicorn stylelock_server:app --reload --host 127.0.0.1 --port 8000
+RUN:
+  uvicorn server:app --host 0.0.0.0 --port 8000
 
-RUN (Railway Start Command):
-  uvicorn stylelock_server:app --host 0.0.0.0 --port $PORT
-
-ENV VARS:
+ENV VARS NEEDED:
   ANTHROPIC_API_KEY=sk-ant-...
-  LIGHTX_API_KEY=...
-  (optional) ANTHROPIC_MODEL=...
-  (optional) FREEIMAGE_KEY=...
-  (optional) IMGBB_KEY=...
+  LIGHTX_API_KEY=622e21fee31e...
 """
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import httpx
@@ -32,9 +26,6 @@ import json
 import asyncio
 import time
 import os
-import random
-from typing import Optional, Dict, Any
-
 
 app = FastAPI(title="StyleLock AI", version="1.0")
 
@@ -47,75 +38,10 @@ app.add_middleware(
 )
 
 # ═══════════════════════════════════════════════════════
-# ENV / API KEYS (DO NOT hardcode production keys)
+# API KEYS (set these as environment variables)
 # ═══════════════════════════════════════════════════════
-ANTHROPIC_KEY = os.getenv("ANTHROPIC_API_KEY", "").strip()
-ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-3-7-sonnet-20250219").strip()
-LIGHTX_KEY = os.getenv("LIGHTX_API_KEY", "").strip()
-
-# Keep model configurable so you can change without redeploying
-# NOTE: Replace this default with a valid model for your Anthropic account if needed.
-ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-latest").strip()
-
-FREEIMAGE_KEY = os.getenv("FREEIMAGE_KEY", "6d207e02198a847aa98d0a2a901485a5").strip()
-IMGBB_KEY = os.getenv("IMGBB_KEY", "d36eb6591370ae7f9089d85ff1e7237c").strip()
-
-ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
-LIGHTX_HAIRSTYLE_URL = "https://api.lightxeditor.com/external/api/v1/hairstyle"
-LIGHTX_ORDER_STATUS_URL = "https://api.lightxeditor.com/external/api/v1/order-status"
-
-# ═══════════════════════════════════════════════════════
-# Helper: robust HTTP POST with retries
-# ═══════════════════════════════════════════════════════
-def _timeout(timeout_s: float) -> httpx.Timeout:
-    return httpx.Timeout(timeout_s, connect=15.0, read=timeout_s, write=timeout_s, pool=timeout_s)
-
-async def post_with_retries(
-    url: str,
-    *,
-    headers: Optional[Dict[str, str]] = None,
-    data: Any = None,
-    json_body: Any = None,
-    timeout_s: float = 60,
-    tries: int = 3,
-    label: str = "HTTP POST",
-) -> httpx.Response:
-    """
-    Retries on common transient failures:
-    - RemoteProtocolError (peer closed connection / incomplete chunked read)
-    - timeouts
-    - 429 and common 5xx
-
-    Raises on final failure.
-    """
-    for attempt in range(1, tries + 1):
-        try:
-            async with httpx.AsyncClient(timeout=_timeout(timeout_s)) as client:
-                resp = await client.post(url, headers=headers, data=data, json=json_body)
-
-                # Retry on rate-limit or transient server issues
-                if resp.status_code in (429, 500, 502, 503, 504):
-                    body_preview = (resp.text or "")[:250]
-                    raise httpx.HTTPStatusError(
-                        f"{label}: transient status {resp.status_code}. Body: {body_preview}",
-                        request=resp.request,
-                        response=resp,
-                    )
-
-                resp.raise_for_status()
-                return resp
-
-        except (httpx.RemoteProtocolError, httpx.ReadTimeout, httpx.ConnectTimeout, httpx.HTTPError) as e:
-            if attempt < tries:
-                backoff = (2 ** (attempt - 1)) + random.random()
-                print(f"⚠️ {label} failed (attempt {attempt}/{tries}): {repr(e)}")
-                print(f"   Retrying in {backoff:.1f}s...")
-                await asyncio.sleep(backoff)
-            else:
-                print(f"❌ {label} failed after {tries} attempts: {repr(e)}")
-                raise
-
-    raise Exception(f"{label} failed for unknown reasons")
+ANTHROPIC_KEY = os.getenv("ANTHROPIC_API_KEY", "your-anthropic-key")
+LIGHTX_KEY = os.getenv("LIGHTX_API_KEY", "622e21fee31e4a4988469f199e87c673_5d0ce065974c49798b676587688da793_andoraitools")
 
 
 # ═══════════════════════════════════════════════════════
@@ -310,28 +236,25 @@ HERO_LOOKS = [
 # ═══════════════════════════════════════════════════════
 async def analyze_with_claude(image_b64: str) -> dict:
     """Send selfie to Claude Vision, get structured hair/face analysis."""
-    if not ANTHROPIC_KEY:
-        raise HTTPException(
-            status_code=500,
-            detail="ANTHROPIC_API_KEY is not set. Add it in Railway → Service → Variables.",
-        )
-
-    print("CALL: Claude analyze - starting")
-
-    headers = {
-        "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_KEY,
-        "anthropic-version": "2023-06-01",
-    }
-
-    payload = {
-        "model": ANTHROPIC_MODEL,
-        "max_tokens": 1000,
-        "messages": [{
-            "role": "user",
-            "content": [
-                {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": image_b64}},
-                {"type": "text", "text": """Analyze this person's hair for a hairstyle recommendation app.
+    print(f"  Using API key: {ANTHROPIC_KEY[:12]}...{ANTHROPIC_KEY[-4:]}")
+    
+    async with httpx.AsyncClient(timeout=60) as client:
+        try:
+            resp = await client.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "Content-Type": "application/json",
+                    "x-api-key": ANTHROPIC_KEY,
+                    "anthropic-version": "2023-06-01",
+                },
+                json={
+                    "model": "claude-sonnet-4-5-20250929",
+                    "max_tokens": 1000,
+                    "messages": [{
+                        "role": "user",
+                        "content": [
+                            {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": image_b64}},
+                            {"type": "text", "text": """Analyze this person's hair for a hairstyle recommendation app.
 Be very precise about measurements. Return ONLY valid JSON:
 {"faceShape":"oval|round|square|oblong|diamond|heart",
 "hairTexture":"straight|wavy|curly|coily",
@@ -346,33 +269,30 @@ Be very precise about measurements. Return ONLY valid JSON:
 "beardPresent":true|false,
 "beardStyle":"<description>",
 "achievabilityNotes":"<2 sentences on realistic hairstyle options>"}"""}
-            ]
-        }]
-    }
-
-    # Claude can be slow / flaky. Give it more time + retries.
-    resp = await post_with_retries(
-        ANTHROPIC_URL,
-        headers=headers,
-        json_body=payload,
-        timeout_s=90,
-        tries=3,
-        label="Claude analyze",
-    )
-
-    data = resp.json()
-    text = "".join(b.get("text", "") for b in data.get("content", []))
-    clean = text.replace("```json", "").replace("```", "").strip()
-
-    try:
-        parsed = json.loads(clean)
-    except json.JSONDecodeError as e:
-        preview = clean[:600]
-        print("❌ Claude returned non-JSON or malformed JSON. Preview:", preview)
-        raise HTTPException(status_code=500, detail=f"Claude JSON parse error: {e}. Preview: {preview}")
-
-    print("CALL: Claude analyze - done")
-    return parsed
+                        ]
+                    }]
+                }
+            )
+            
+            print(f"  Claude API status: {resp.status_code}")
+            
+            if resp.status_code != 200:
+                error_body = resp.text
+                print(f"  Claude API error: {error_body[:300]}")
+                raise Exception(f"Claude API returned {resp.status_code}: {error_body[:200]}")
+            
+            data = resp.json()
+            text = "".join(b.get("text", "") for b in data.get("content", []))
+            print(f"  Claude response: {text[:200]}")
+            clean = text.replace("```json", "").replace("```", "").strip()
+            return json.loads(clean)
+            
+        except json.JSONDecodeError as e:
+            print(f"  Failed to parse Claude response as JSON: {e}")
+            raise Exception(f"Claude returned non-JSON response: {text[:100]}")
+        except httpx.HTTPStatusError as e:
+            print(f"  HTTP error from Claude: {e}")
+            raise
 
 
 # ═══════════════════════════════════════════════════════
@@ -386,24 +306,27 @@ def score_and_pick(analysis: dict) -> list:
     length = analysis.get("estimatedTopLengthCm", 5)
     hairline = analysis.get("hairlineState", "normal").lower()
     crown = analysis.get("crownState", "full").lower()
-
+    
     is_receding = "receding" in hairline
     is_thinning = "thin" in density or "thin" in crown
-
+    
     scored = []
     for look in HERO_LOOKS:
         # --- Hard filters ---
+        # Texture requirement
         if look["required_texture"]:
             if look["required_texture"] == "straight" and texture not in ("straight",):
                 continue
             if look["required_texture"] == "curly" and texture not in ("curly", "coily"):
                 continue
-
+        
+        # Texture score = 0 means blocked
         tex_score = look["texture_scores"].get(texture, 0)
         if tex_score == 0:
             continue
-
+        
         # --- Achievability score ---
+        # Length (40 points)
         min_len = look["min_length_cm"]
         if length >= min_len:
             length_pts = 40
@@ -417,10 +340,10 @@ def score_and_pick(analysis: dict) -> list:
         else:
             length_pts = 0
             achievability = "blocked"
-
+        
         if achievability == "blocked":
             continue
-
+        
         # Density (30 points)
         density_req = look["min_density"]
         if density_req == "any" or density_req == "low":
@@ -436,34 +359,34 @@ def score_and_pick(analysis: dict) -> list:
             elif "medium" in density:
                 density_pts = 15
             else:
-                continue
+                continue  # blocked — thin hair can't do high-density looks
         else:
             density_pts = 20
-
+        
         # Hairline (15 points)
         if is_receding and not look["receding_ok"]:
             hairline_pts = 0
         elif is_receding and look["receding_ok"]:
-            hairline_pts = 15
+            hairline_pts = 15  # bonus — designed for this
         else:
             hairline_pts = 15
-
+        
         # Face compatibility (15 points)
         face_pts = look["face_scores"].get(face, 1) / 3 * 15
-
+        
         # Thinning bonus
         thin_bonus = 5 if is_thinning and look["thinning_ok"] else 0
-
+        
         total = round(length_pts + density_pts + hairline_pts + face_pts + thin_bonus)
-
+        
         # Growth estimate
-        if achievability in ("grow", "dream"):
+        if achievability == "grow" or achievability == "dream":
             gap = max(0, min_len - length)
             weeks = round(gap / 1.25 * 4.3)
         else:
             gap = 0
             weeks = 0
-
+        
         scored.append({
             **look,
             "score": total,
@@ -471,163 +394,169 @@ def score_and_pick(analysis: dict) -> list:
             "growth_gap_cm": round(gap, 1),
             "growth_weeks": weeks,
         })
-
+    
+    # Sort by score descending
     scored.sort(key=lambda x: x["score"], reverse=True)
-
+    
+    # Pick top 1 per tier, prioritize "ready" looks
     tiers = ["CLEAN", "TRENDING", "BOLD"]
     picks = []
     for tier in tiers:
         tier_looks = [l for l in scored if l["tier"] == tier]
+        # Prefer "ready" looks
         ready = [l for l in tier_looks if l["achievability"] == "ready"]
         grow = [l for l in tier_looks if l["achievability"] == "grow"]
         dream = [l for l in tier_looks if l["achievability"] == "dream"]
-
+        
         if ready:
             picks.append(ready[0])
         elif grow:
             picks.append(grow[0])
         elif dream:
             picks.append(dream[0])
-
+    
     return picks[:3]
 
 
 # ═══════════════════════════════════════════════════════
-# STEP 3A: Upload image to host (robust + retries)
+# STEP 3: LIGHTX — Generate hairstyle previews
 # ═══════════════════════════════════════════════════════
+async def generate_hairstyle(image_url: str, prompt: str, look_name: str = "") -> str | None:
+    """Call LightX API to generate one hairstyle preview."""
+    print(f"    [{look_name}] Calling LightX API...")
+    async with httpx.AsyncClient(timeout=120) as client:
+        # Submit generation
+        try:
+            resp = await client.post(
+                "https://api.lightxeditor.com/external/api/v1/hairstyle",
+                headers={"Content-Type": "application/json", "x-api-key": LIGHTX_KEY},
+                json={"imageUrl": image_url, "textPrompt": prompt}
+            )
+            data = resp.json()
+            print(f"    [{look_name}] Submit response: {json.dumps(data)[:300]}")
+        except Exception as e:
+            print(f"    [{look_name}] Submit FAILED: {e}")
+            return None
+        
+        # Check for direct output (some API versions return immediately)
+        output = data.get("body", {}).get("output")
+        if output:
+            print(f"    [{look_name}] Got direct output!")
+            return output
+        
+        # Also check top-level output
+        if data.get("output"):
+            print(f"    [{look_name}] Got top-level output!")
+            return data["output"]
+        
+        # Get order ID and poll
+        order_id = data.get("body", {}).get("orderId") or data.get("orderId")
+        if not order_id:
+            print(f"    [{look_name}] ERROR: No orderId in response. Full: {json.dumps(data)}")
+            return None
+        
+        print(f"    [{look_name}] Order ID: {order_id} — polling...")
+        
+        # Poll for result
+        for attempt in range(40):  # up to 2 minutes
+            await asyncio.sleep(3)
+            try:
+                poll = await client.post(
+                    "https://api.lightxeditor.com/external/api/v1/order-status",
+                    headers={"Content-Type": "application/json", "x-api-key": LIGHTX_KEY},
+                    json={"orderId": order_id}
+                )
+                poll_data = poll.json()
+                
+                # Try multiple possible status locations
+                status = (
+                    poll_data.get("body", {}).get("status") or
+                    poll_data.get("status") or
+                    ""
+                ).lower()
+                
+                print(f"    [{look_name}] Poll #{attempt+1}: status='{status}'")
+                
+                # Check for output in multiple possible locations
+                output = (
+                    poll_data.get("body", {}).get("output") or
+                    poll_data.get("output") or
+                    None
+                )
+                
+                if output:
+                    print(f"    [{look_name}] ✅ Got output URL!")
+                    return output
+                
+                # Check if completed even without explicit status match
+                if status in ("active", "completed", "success", "done", "finished"):
+                    if output:
+                        return output
+                    # Sometimes output is nested differently
+                    body = poll_data.get("body", {})
+                    for key in ["output", "outputUrl", "result", "image", "imageUrl", "url"]:
+                        if body.get(key):
+                            print(f"    [{look_name}] ✅ Found output in body.{key}")
+                            return body[key]
+                
+                if status in ("failed", "error", "cancelled"):
+                    print(f"    [{look_name}] ❌ Generation failed. Response: {json.dumps(poll_data)[:200]}")
+                    return None
+                    
+            except Exception as e:
+                print(f"    [{look_name}] Poll error: {e}")
+                continue
+        
+        print(f"    [{look_name}] ❌ Timeout after 40 polls")
+        return None
+
+
 async def upload_image_to_host(image_b64: str) -> str:
     """Upload base64 image to a free host and return URL."""
-    print("CALL: Upload image host - starting")
-
-    # Try freeimage.host
-    try:
-        resp = await post_with_retries(
-            "https://freeimage.host/api/1/upload",
-            data={
-                "key": FREEIMAGE_KEY,
-                "action": "upload",
-                "source": image_b64,
-                "format": "json"
-            },
-            timeout_s=45,
-            tries=3,
-            label="freeimage.host upload",
-        )
-        data = resp.json()
-        url = (data.get("image", {}) or {}).get("url")
-        if url:
-            print(f"CALL: Upload image host - freeimage OK: {url}")
-            return url
-        else:
-            print(f"⚠️ freeimage.host response missing url: {json.dumps(data)[:250]}")
-    except Exception as e:
-        print(f"⚠️ freeimage.host upload failed: {repr(e)}")
-
-    # Fallback: imgbb
-    try:
-        resp = await post_with_retries(
-            "https://api.imgbb.com/1/upload",
-            data={
-                "key": IMGBB_KEY,
-                "image": image_b64,
-                "expiration": 600,
-            },
-            timeout_s=45,
-            tries=3,
-            label="imgbb upload",
-        )
-        data = resp.json()
-        if data.get("success"):
-            url = (data.get("data", {}) or {}).get("url")
-            if url:
-                print(f"CALL: Upload image host - imgbb OK: {url}")
-                return url
-        print(f"⚠️ imgbb response: {json.dumps(data)[:250]}")
-    except Exception as e:
-        print(f"⚠️ imgbb upload failed: {repr(e)}")
-
-    raise HTTPException(status_code=502, detail="Image upload failed (freeimage + imgbb). Try again.")
-
-
-# ═══════════════════════════════════════════════════════
-# STEP 3B: LIGHTX — Generate hairstyle previews (robust)
-# ═══════════════════════════════════════════════════════
-async def generate_hairstyle(image_url: str, prompt: str, look_name: str = "") -> Optional[str]:
-    """Call LightX API to generate one hairstyle preview."""
-    if not LIGHTX_KEY:
-        print(f"⚠️ LIGHTX_API_KEY missing. Skipping LightX generation for: {look_name}")
-        return None
-
-    print(f"CALL: LightX generate - starting: {look_name}")
-
-    # Submit job (with retries)
-    try:
-        resp = await post_with_retries(
-            LIGHTX_HAIRSTYLE_URL,
-            headers={"Content-Type": "application/json", "x-api-key": LIGHTX_KEY},
-            json_body={"imageUrl": image_url, "textPrompt": prompt},
-            timeout_s=90,
-            tries=3,
-            label=f"LightX submit ({look_name})",
-        )
-        data = resp.json()
-        print(f"CALL: LightX submit - {look_name} - resp: {json.dumps(data)[:300]}")
-    except Exception as e:
-        print(f"❌ LightX submit FAILED [{look_name}]: {repr(e)}")
-        return None
-
-    output = (data.get("body", {}) or {}).get("output") or data.get("output")
-    if output:
-        print(f"CALL: LightX generate - done (direct output): {look_name}")
-        return output
-
-    order_id = (data.get("body", {}) or {}).get("orderId") or data.get("orderId")
-    if not order_id:
-        print(f"❌ LightX submit missing orderId [{look_name}]. Full: {json.dumps(data)[:400]}")
-        return None
-
-    # Poll status (with retries)
-    for attempt in range(40):  # ~2 minutes
-        await asyncio.sleep(3)
-
+    print("  Uploading to freeimage.host...")
+    async with httpx.AsyncClient(timeout=30) as client:
         try:
-            poll_resp = await post_with_retries(
-                LIGHTX_ORDER_STATUS_URL,
-                headers={"Content-Type": "application/json", "x-api-key": LIGHTX_KEY},
-                json_body={"orderId": order_id},
-                timeout_s=45,
-                tries=3,
-                label=f"LightX poll ({look_name})",
+            resp = await client.post(
+                "https://freeimage.host/api/1/upload",
+                data={
+                    "key": "6d207e02198a847aa98d0a2a901485a5",
+                    "action": "upload",
+                    "source": image_b64,
+                    "format": "json"
+                }
             )
-            poll_data = poll_resp.json()
+            data = resp.json()
+            if data.get("status_code") == 200 or data.get("image", {}).get("url"):
+                url = data["image"]["url"]
+                print(f"  ✅ Uploaded to freeimage.host: {url}")
+                return url
+            else:
+                print(f"  ⚠️ freeimage.host response: {json.dumps(data)[:200]}")
         except Exception as e:
-            print(f"⚠️ LightX poll error [{look_name}] attempt {attempt+1}: {repr(e)}")
-            continue
-
-        status = (
-            (poll_data.get("body", {}) or {}).get("status")
-            or poll_data.get("status")
-            or ""
-        ).lower()
-
-        output = (
-            (poll_data.get("body", {}) or {}).get("output")
-            or poll_data.get("output")
-            or None
-        )
-
-        print(f"CALL: LightX poll {attempt+1}/40 - {look_name} - status='{status}'")
-
-        if output:
-            print(f"CALL: LightX generate - done: {look_name}")
-            return output
-
-        if status in ("failed", "error", "cancelled"):
-            print(f"❌ LightX failed [{look_name}] resp: {json.dumps(poll_data)[:250]}")
-            return None
-
-    print(f"❌ LightX timeout after polls [{look_name}]")
-    return None
+            print(f"  ⚠️ freeimage.host failed: {e}")
+        
+        # Fallback: try imgbb
+        print("  Trying imgbb fallback...")
+        try:
+            resp = await client.post(
+                "https://api.imgbb.com/1/upload",
+                data={
+                    "key": "d36eb6591370ae7f9089d85ff1e7237c",  # free public key
+                    "image": image_b64,
+                    "expiration": 600,
+                }
+            )
+            data = resp.json()
+            if data.get("success"):
+                url = data["data"]["url"]
+                print(f"  ✅ Uploaded to imgbb: {url}")
+                return url
+            else:
+                print(f"  ⚠️ imgbb response: {json.dumps(data)[:200]}")
+        except Exception as e:
+            print(f"  ⚠️ imgbb failed: {e}")
+        
+        raise Exception("Could not upload image to any host")
 
 
 # ═══════════════════════════════════════════════════════
@@ -635,50 +564,75 @@ async def generate_hairstyle(image_url: str, prompt: str, look_name: str = "") -
 # ═══════════════════════════════════════════════════════
 @app.post("/api/consult")
 async def consult(file: UploadFile = File(...)):
+    """THE MAIN ENDPOINT."""
     start_time = time.time()
-
+    
     try:
         # Read and encode image
         contents = await file.read()
-        if not contents:
-            raise HTTPException(status_code=400, detail="Empty file uploaded")
-
         image_b64 = base64.b64encode(contents).decode("utf-8")
-
+        print(f"Image received: {len(contents)} bytes")
+        
         # ── STEP 1: Claude Vision Analysis ──
-        print("STEP 1: Analyzing with Claude Vision...")
-        analysis = await analyze_with_claude(image_b64)
-        print("STEP 1: Done.")
-
+        print("Step 1: Analyzing with Claude Vision...")
+        try:
+            analysis = await analyze_with_claude(image_b64)
+            print(f"  Analysis: {json.dumps(analysis, indent=2)}")
+        except Exception as e:
+            print(f"  ❌ Claude Vision failed: {e}")
+            return JSONResponse(status_code=500, content={
+                "success": False,
+                "error": f"Claude Vision analysis failed: {str(e)}",
+                "step": "analysis"
+            })
+        
         # ── STEP 2: Score and pick 3 looks ──
-        print("STEP 2: Scoring looks...")
+        print("Step 2: Scoring looks...")
         picks = score_and_pick(analysis)
-        if not picks:
-            raise HTTPException(status_code=500, detail="Scoring returned no picks for this analysis")
         print(f"  Picked: {[p['name'] for p in picks]}")
-
+        
+        if not picks:
+            return JSONResponse(content={
+                "success": False,
+                "error": "No matching looks found for your hair profile",
+                "analysis": analysis,
+                "step": "scoring"
+            })
+        
         # ── STEP 3: Upload selfie for LightX ──
-        print("STEP 3: Uploading image for LightX...")
-        image_url = await upload_image_to_host(image_b64)
-        print(f"  Uploaded URL: {image_url}")
-
+        print("Step 3: Uploading image...")
+        try:
+            image_url = await upload_image_to_host(image_b64)
+            print(f"  URL: {image_url}")
+        except Exception as e:
+            print(f"  ❌ Image upload failed: {e}")
+            return JSONResponse(status_code=500, content={
+                "success": False,
+                "error": f"Image upload failed: {str(e)}",
+                "analysis": analysis,
+                "step": "upload"
+            })
+        
         # ── STEP 4: Generate 3 hairstyle previews in PARALLEL ──
-        print("STEP 4: Generating 3 previews (parallel)...")
+        print("Step 4: Generating 3 previews (parallel)...")
         generation_tasks = [
             generate_hairstyle(image_url, pick["lightx_prompt"], pick["name"])
             for pick in picks
         ]
-
+        
         try:
             preview_urls = await asyncio.wait_for(
                 asyncio.gather(*generation_tasks, return_exceptions=True),
-                timeout=180  # 3 minute max
+                timeout=180
             )
-            preview_urls = [url if isinstance(url, str) else None for url in preview_urls]
+            preview_urls = [
+                url if isinstance(url, str) else None
+                for url in preview_urls
+            ]
         except asyncio.TimeoutError:
-            print("⚠️ Generation timed out after 3 minutes")
+            print("  ⚠️ Generation timed out after 3 minutes")
             preview_urls = [None] * len(picks)
-
+        
         # ── BUILD RESPONSE ──
         recommendations = []
         for pick, preview_url in zip(picks, preview_urls):
@@ -698,23 +652,24 @@ async def consult(file: UploadFile = File(...)):
                 "growth_weeks": pick.get("growth_weeks", 0),
                 "preview_url": preview_url,
             })
-
+        
         elapsed = round(time.time() - start_time, 1)
-        print(f"✅ Done in {elapsed}s")
-
+        print(f"Done in {elapsed}s")
+        
         return JSONResponse({
             "success": True,
             "elapsed_seconds": elapsed,
             "analysis": analysis,
             "recommendations": recommendations,
         })
-
-    except HTTPException:
-        raise
+    
     except Exception as e:
-        # This gives your frontend a readable error instead of a vague 500
-        print("🔥 /api/consult crashed:", repr(e))
-        raise HTTPException(status_code=500, detail=f"Backend error: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(status_code=500, content={
+            "success": False,
+            "error": f"Backend error: {type(e).__name__}: {str(e)}",
+        })
 
 
 # ═══════════════════════════════════════════════════════
@@ -722,7 +677,69 @@ async def consult(file: UploadFile = File(...)):
 # ═══════════════════════════════════════════════════════
 @app.get("/")
 async def health():
-    return {"status": "ok", "service": "StyleLock AI", "version": "1.0"}
+    return {
+        "status": "ok",
+        "service": "StyleLock AI",
+        "version": "1.1",
+        "anthropic_key_set": ANTHROPIC_KEY != "your-anthropic-key" and len(ANTHROPIC_KEY) > 10,
+        "anthropic_key_preview": f"{ANTHROPIC_KEY[:8]}...{ANTHROPIC_KEY[-4:]}" if len(ANTHROPIC_KEY) > 12 else "NOT SET",
+        "lightx_key_set": len(LIGHTX_KEY) > 10,
+    }
+
+
+@app.get("/api/debug")
+async def debug():
+    """Debug endpoint — check if all configs are correct."""
+    import httpx
+    
+    results = {"anthropic": "untested", "lightx": "untested", "image_host": "untested"}
+    
+    # Test Anthropic
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "Content-Type": "application/json",
+                    "x-api-key": ANTHROPIC_KEY,
+                    "anthropic-version": "2023-06-01",
+                },
+                json={
+                    "model": "claude-sonnet-4-5-20250929",
+                    "max_tokens": 10,
+                    "messages": [{"role": "user", "content": "Say hi"}]
+                }
+            )
+            if resp.status_code == 200:
+                results["anthropic"] = "✅ Working"
+            else:
+                results["anthropic"] = f"❌ Status {resp.status_code}: {resp.text[:100]}"
+    except Exception as e:
+        results["anthropic"] = f"❌ Error: {str(e)[:100]}"
+    
+    # Test LightX
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                "https://api.lightxeditor.com/external/api/v1/hairstyle",
+                headers={"Content-Type": "application/json", "x-api-key": LIGHTX_KEY},
+                json={"imageUrl": "https://test.com/fake.jpg", "textPrompt": "test"}
+            )
+            if resp.status_code in (200, 400, 422):
+                results["lightx"] = f"✅ Reachable (status {resp.status_code})"
+            else:
+                results["lightx"] = f"⚠️ Status {resp.status_code}: {resp.text[:100]}"
+    except Exception as e:
+        results["lightx"] = f"❌ Error: {str(e)[:100]}"
+    
+    return {
+        "config": {
+            "anthropic_key": f"{ANTHROPIC_KEY[:8]}...{ANTHROPIC_KEY[-4:]}" if len(ANTHROPIC_KEY) > 12 else "NOT SET",
+            "lightx_key": f"{LIGHTX_KEY[:8]}...{LIGHTX_KEY[-4:]}" if len(LIGHTX_KEY) > 12 else "NOT SET",
+            "model": "claude-sonnet-4-5-20250929",
+        },
+        "tests": results,
+    }
 
 
 @app.get("/api/looks")
