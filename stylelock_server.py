@@ -742,6 +742,248 @@ async def debug():
     }
 
 
+# ═══════════════════════════════════════════════════════
+# FRONTEND — Served from the same server (no CORS issues)
+# ═══════════════════════════════════════════════════════
+from fastapi.responses import HTMLResponse
+
+@app.get("/app", response_class=HTMLResponse)
+async def frontend():
+    """Serve the StyleLock AI frontend."""
+    return FRONTEND_HTML
+
+
+FRONTEND_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>StyleLock AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#0A0A0F; --card:rgba(255,255,255,0.03); --border:rgba(255,255,255,0.08); --pink:#FF3CAC; --cyan:#00E5FF; --yellow:#FFE600; --green:#00E676; --red:#FF4444; --orange:#FFB800; --text:#fff; --muted:rgba(255,255,255,0.45); --dim:rgba(255,255,255,0.25); }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{background:#050508;font-family:'Outfit',sans-serif;color:var(--text);min-height:100vh;display:flex;justify-content:center}
+  input[type="file"]{display:none} ::-webkit-scrollbar{width:0}
+  .app{width:100%;max-width:420px;min-height:100vh;background:var(--bg);position:relative;overflow-x:hidden}
+  .screen{width:100%;min-height:100vh;display:flex;flex-direction:column;animation:fadeIn .3s ease}
+  .screen.hidden{display:none}
+  .tag{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:3px;font-weight:500}
+  .btn{width:100%;padding:18px 0;border-radius:16px;border:none;font-family:'Outfit';font-size:16px;font-weight:700;cursor:pointer;position:relative;overflow:hidden}
+  .btn::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent);background-size:200% 100%;animation:shimmer 2s infinite}
+  .btn-pink{background:linear-gradient(135deg,var(--pink),#784BA0,#2B86C5);color:white;box-shadow:0 0 28px rgba(255,60,172,.3)}
+  .badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:8px;font-size:11px}
+  .badge-ready{background:rgba(0,230,118,.1);color:var(--green)} .badge-grow{background:rgba(255,184,0,.1);color:var(--orange)} .badge-dream{background:rgba(255,68,68,.1);color:var(--red)}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+  @keyframes slideUp{0%{opacity:0;transform:translateY(20px)}100%{opacity:1;transform:translateY(0)}}
+  @keyframes orbitSpin{0%{transform:translate(-50%,-50%) rotate(0)}100%{transform:translate(-50%,-50%) rotate(360deg)}}
+  @keyframes blob{0%,100%{border-radius:60% 40% 30% 70%/60% 30% 70% 40%}50%{border-radius:30% 60% 70% 40%/50% 60% 30% 60%}}
+  @keyframes ringPulse{0%{transform:translate(-50%,-50%) scale(1);opacity:.3}100%{transform:translate(-50%,-50%) scale(2);opacity:0}}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- INTRO -->
+  <div class="screen" id="screen-intro" style="padding:0 28px;position:relative;overflow:hidden">
+    <div style="position:absolute;top:-60px;right:-60px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(255,60,172,.2),transparent 70%);filter:blur(40px);animation:blob 6s ease-in-out infinite"></div>
+    <div style="position:absolute;bottom:-40px;left:-40px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(0,229,255,.15),transparent 70%);filter:blur(40px);animation:blob 8s ease-in-out infinite reverse"></div>
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;z-index:1">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px">
+        <span style="font-size:36px">✂️</span>
+        <div>
+          <div style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;background:linear-gradient(90deg,var(--pink),#784BA0,var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent">STYLELOCK</div>
+          <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--pink);letter-spacing:4px">AI HAIR TRY-ON</div>
+        </div>
+      </div>
+      <h1 style="font-size:30px;font-weight:900;line-height:1.2;margin-bottom:14px">See <span style="background:linear-gradient(90deg,var(--pink),var(--yellow));-webkit-background-clip:text;-webkit-text-fill-color:transparent">yourself</span> with<br>3 new looks</h1>
+      <p style="font-size:15px;color:var(--muted);line-height:1.7;margin-bottom:32px">One selfie. AI analyzes your face and hair. Generates photorealistic previews of YOU with 3 personalized hairstyles.</p>
+      <div id="intro-steps"></div>
+    </div>
+    <div style="padding-bottom:40px;z-index:1">
+      <input type="file" id="file-input" accept="image/*" capture="user">
+      <button class="btn btn-pink" onclick="document.getElementById('file-input').click()">📸 TAKE A SELFIE</button>
+      <p style="font-size:11px;color:var(--dim);text-align:center;margin-top:8px">Photos stay on your device until you hit analyze</p>
+    </div>
+  </div>
+
+  <!-- PREVIEW -->
+  <div class="screen hidden" id="screen-preview" style="padding:44px 24px 36px">
+    <div class="tag" style="color:var(--cyan);margin-bottom:8px">PREVIEW</div>
+    <h2 style="font-size:22px;font-weight:800;margin-bottom:4px">Looking good! 📸</h2>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">This selfie will be sent for AI analysis and hairstyle generation.</p>
+    <div style="flex:1;border-radius:20px;overflow:hidden;border:2px solid rgba(0,229,255,.3);margin-bottom:16px">
+      <img id="preview-img" style="width:100%;height:100%;object-fit:cover" alt="Your selfie">
+    </div>
+    <div style="display:flex;gap:12px">
+      <button class="btn" style="flex:1;background:var(--card);border:1px solid var(--border);color:var(--muted);font-size:14px" onclick="resetToIntro()">🔄 Retake</button>
+      <button class="btn btn-pink" style="flex:2;font-size:14px" onclick="startConsult()">✨ GENERATE 3 LOOKS</button>
+    </div>
+  </div>
+
+  <!-- GENERATING -->
+  <div class="screen hidden" id="screen-generating" style="align-items:center;justify-content:center;padding:32px;position:relative;overflow:hidden;background:linear-gradient(135deg,#0A0A0F,#1A0A2E)">
+    <div style="position:absolute;top:50%;left:50%;width:280px;height:280px;border-radius:50%;border:1px solid rgba(255,60,172,.12);animation:orbitSpin 10s linear infinite"><div style="position:absolute;top:0;left:50%;width:8px;height:8px;border-radius:50%;background:var(--pink);transform:translateX(-50%);box-shadow:0 0 20px var(--pink)"></div></div>
+    <div style="position:absolute;top:50%;left:50%;width:180px;height:180px;border-radius:50%;border:1px solid rgba(0,229,255,.1);animation:orbitSpin 7s linear infinite reverse"><div style="position:absolute;top:0;left:50%;width:6px;height:6px;border-radius:50%;background:var(--cyan);transform:translateX(-50%);box-shadow:0 0 15px var(--cyan)"></div></div>
+    <div style="position:absolute;top:50%;left:50%;width:100px;height:100px;border-radius:50%;border:2px solid rgba(255,60,172,.15);animation:ringPulse 2s ease-out infinite"></div>
+    <div id="gen-emoji" style="font-size:48px;margin-bottom:20px;animation:float 2s ease-in-out infinite;z-index:1">🧠</div>
+    <p id="gen-step" style="font-family:'DM Mono',monospace;font-size:15px;z-index:1;text-align:center">Connecting to StyleLock AI...</p>
+    <p id="gen-detail" style="font-size:13px;color:var(--muted);z-index:1;text-align:center;margin-top:6px">This takes 20-35 seconds</p>
+    <div style="display:flex;gap:8px;margin-top:24px;z-index:1" id="gen-progress">
+      <div class="gen-bar" data-step="analysis"><div style="width:60px;height:4px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden"><div class="gen-fill" style="width:0%;height:100%;border-radius:2px;background:var(--pink);transition:width .5s"></div></div><span style="font-size:9px;color:var(--dim);display:block;text-align:center;margin-top:4px">Analysis</span></div>
+      <div class="gen-bar" data-step="scoring"><div style="width:60px;height:4px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden"><div class="gen-fill" style="width:0%;height:100%;border-radius:2px;background:var(--cyan);transition:width .5s"></div></div><span style="font-size:9px;color:var(--dim);display:block;text-align:center;margin-top:4px">Scoring</span></div>
+      <div class="gen-bar" data-step="generating"><div style="width:60px;height:4px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden"><div class="gen-fill" style="width:0%;height:100%;border-radius:2px;background:var(--yellow);transition:width .5s"></div></div><span style="font-size:9px;color:var(--dim);display:block;text-align:center;margin-top:4px">Try-On</span></div>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="screen hidden" id="screen-results" style="padding:44px 24px 32px;overflow:auto">
+    <div style="margin-bottom:20px">
+      <div class="tag" style="color:var(--pink);margin-bottom:8px">YOUR 3 LOOKS</div>
+      <h2 style="font-size:24px;font-weight:800;margin-bottom:4px">Here's you, 3 ways ✨</h2>
+      <p style="font-size:13px;color:var(--muted)">AI-generated previews based on your face and hair analysis. Tap any to see the full Cut Card.</p>
+    </div>
+    <div id="analysis-summary" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px"></div>
+    <div id="results-cards" style="display:flex;flex-direction:column;gap:16px"></div>
+    <button class="btn" style="background:transparent;color:var(--dim);font-size:13px;margin-top:20px;border:none" onclick="resetToIntro()">📸 Take a new selfie</button>
+  </div>
+
+  <!-- DETAIL -->
+  <div class="screen hidden" id="screen-detail" style="overflow:auto">
+    <div id="detail-content"></div>
+  </div>
+
+</div>
+
+<script>
+// API is on the same server — no CORS issues
+const API_BASE = "";
+
+let currentFile = null;
+let currentPhotoUrl = null;
+let consultResult = null;
+
+// Intro steps
+const stepsEl = document.getElementById("intro-steps");
+[{e:"📸",t:"Take one front selfie"},{e:"🧠",t:"AI analyzes your face shape, hair & density"},{e:"✨",t:"See yourself with 3 AI-generated hairstyles"},{e:"🔒",t:"Lock a look, get a barber-ready Cut Card"}].forEach(({e,t},i)=>{
+  const d=document.createElement("div");
+  d.style.cssText=`display:flex;align-items:center;gap:12px;margin-bottom:11px;animation:slideUp .4s ease-out ${.1+i*.06}s both`;
+  d.innerHTML=`<span style="font-size:16px;width:28px;text-align:center">${e}</span><span style="font-size:14px;color:rgba(255,255,255,.55)">${t}</span>`;
+  stepsEl.appendChild(d);
+});
+
+function showScreen(id){document.querySelectorAll(".screen").forEach(s=>s.classList.add("hidden"));document.getElementById("screen-"+id).classList.remove("hidden");window.scrollTo(0,0)}
+function resetToIntro(){currentFile=null;currentPhotoUrl=null;consultResult=null;document.getElementById("file-input").value="";showScreen("intro")}
+
+document.getElementById("file-input").addEventListener("change",function(e){
+  const file=e.target.files?.[0];if(!file)return;
+  currentFile=file;
+  const reader=new FileReader();
+  reader.onload=(ev)=>{currentPhotoUrl=ev.target.result;document.getElementById("preview-img").src=currentPhotoUrl;showScreen("preview")};
+  reader.readAsDataURL(file);
+});
+
+function updateProgress(step,percent,emoji,text,detail){
+  if(emoji)document.getElementById("gen-emoji").textContent=emoji;
+  if(text)document.getElementById("gen-step").textContent=text;
+  if(detail)document.getElementById("gen-detail").textContent=detail;
+  const bars=document.querySelectorAll(".gen-bar");
+  const steps=["analysis","scoring","generating"];
+  const si=steps.indexOf(step);
+  bars.forEach((bar,i)=>{const fill=bar.querySelector(".gen-fill");if(i<si)fill.style.width="100%";else if(i===si)fill.style.width=percent+"%"});
+}
+
+async function startConsult(){
+  showScreen("generating");
+  updateProgress("analysis",30,"🧠","Analyzing your face & hair...","Claude Vision AI is reading your features");
+
+  try{
+    const formData=new FormData();
+    formData.append("file",currentFile);
+
+    const progressSteps=[
+      {delay:3000,fn:()=>updateProgress("analysis",100,"🧠","Face analyzed!","Scoring looks...")},
+      {delay:5000,fn:()=>updateProgress("scoring",100,"🎯","3 looks selected!","Generating AI previews...")},
+      {delay:7000,fn:()=>updateProgress("generating",20,"✨","Creating your previews...","LightX AI is generating 3 hairstyles on your face")},
+      {delay:15000,fn:()=>updateProgress("generating",40,"✨","Still working...","AI image generation takes 15-45 seconds per look")},
+      {delay:30000,fn:()=>updateProgress("generating",60,"✨","Almost there...","Waiting for LightX to finish rendering")},
+      {delay:60000,fn:()=>updateProgress("generating",75,"⏳","Taking longer than usual...","LightX is still processing — hang tight")},
+      {delay:90000,fn:()=>updateProgress("generating",80,"⏳","Very slow today...","Still waiting for LightX — this sometimes happens")},
+    ];
+    const timers=progressSteps.map(({delay,fn})=>setTimeout(fn,delay));
+
+    const controller=new AbortController();
+    const timeoutId=setTimeout(()=>controller.abort(),180000);
+
+    console.log("Sending request to",API_BASE+"/api/consult");
+    const response=await fetch(API_BASE+"/api/consult",{method:"POST",body:formData,signal:controller.signal});
+
+    clearTimeout(timeoutId);
+    timers.forEach(t=>clearTimeout(t));
+
+    console.log("Response status:",response.status);
+    const responseText=await response.text();
+    console.log("Response body (first 500):",responseText.substring(0,500));
+
+    if(!response.ok)throw new Error("Server error "+response.status+": "+responseText.substring(0,200));
+
+    consultResult=JSON.parse(responseText);
+    if(!consultResult.success)throw new Error(consultResult.error||"Consult failed");
+
+    updateProgress("generating",100,"🎉","Done!","Loading your looks...");
+    setTimeout(()=>renderResults(),500);
+
+  }catch(err){
+    console.error("Consult error:",err);
+    const isTimeout=err.name==="AbortError";
+    document.getElementById("gen-step").textContent=isTimeout?"⏳ Timed out":"⚠️ Something went wrong";
+    document.getElementById("gen-detail").innerHTML=`<span style="color:var(--red);font-size:13px">${isTimeout?"Server took too long. LightX may be slow.":err.message}</span><br><div style="display:flex;gap:10px;justify-content:center;margin-top:16px"><button class="btn" style="padding:12px 20px;background:var(--card);border:1px solid var(--border);color:var(--muted);font-size:13px;width:auto" onclick="resetToIntro()">← Start over</button><button class="btn" style="padding:12px 20px;background:linear-gradient(135deg,var(--pink),#784BA0);color:white;font-size:13px;width:auto" onclick="startConsult()">🔄 Retry</button></div>`;
+  }
+}
+
+function renderResults(){
+  const{analysis,recommendations}=consultResult;
+  const summaryEl=document.getElementById("analysis-summary");
+  summaryEl.innerHTML="";
+  [{l:"◆",v:analysis.faceShape},{l:"〰",v:analysis.hairTexture},{l:"▓",v:analysis.density},{l:"📏",v:analysis.estimatedTopLengthCm+"cm"},{l:"⌒",v:analysis.hairlineState}].forEach(({l,v})=>{
+    summaryEl.innerHTML+=`<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:5px 10px;font-size:11px;color:var(--muted);text-transform:capitalize">${l} ${v}</div>`;
+  });
+  const cardsEl=document.getElementById("results-cards");
+  cardsEl.innerHTML="";
+  const tc_map={CLEAN:"var(--cyan)",TRENDING:"var(--pink)",BOLD:"var(--yellow)"};
+  const te_map={CLEAN:"💼",TRENDING:"🔥",BOLD:"⚡"};
+  recommendations.forEach((rec,i)=>{
+    const tc=tc_map[rec.look.tier]||"var(--pink)";
+    const te=te_map[rec.look.tier]||"✨";
+    const hasImg=rec.preview_url&&rec.preview_url!=="null"&&rec.preview_url!==null;
+    const ab=rec.achievability==="ready"?`<span class="badge badge-ready">🟢 Ready now</span>`:rec.achievability==="grow"?`<span class="badge badge-grow">🟡 ~${rec.growth_weeks}wk growth</span>`:`<span class="badge badge-dream">🔴 ~${rec.growth_weeks}wk</span>`;
+    const card=document.createElement("div");
+    card.style.cssText=`border-radius:20px;overflow:hidden;border:1px solid ${tc}30;cursor:pointer;animation:slideUp .4s ease-out ${i*.1}s both`;
+    card.onclick=()=>showDetail(rec,tc,te);
+    card.innerHTML=`<div style="width:100%;height:300px;background:${tc}08;position:relative">${hasImg?`<img src="${rec.preview_url}" style="width:100%;height:100%;object-fit:cover" alt="${rec.look.name}">`:`<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center"><span style="font-size:48px;margin-bottom:8px">${te}</span><span style="font-size:12px;color:var(--dim)">Preview unavailable</span></div>`}<div style="position:absolute;top:12px;left:12px;background:rgba(0,0,0,.7);backdrop-filter:blur(10px);border-radius:10px;padding:6px 12px;display:flex;align-items:center;gap:6px"><span style="font-size:14px">${te}</span><span style="font-family:'DM Mono',monospace;font-size:10px;color:${tc}">${rec.look.tier}</span></div><div style="position:absolute;top:12px;right:12px;background:rgba(0,0,0,.7);backdrop-filter:blur(10px);border-radius:10px;padding:6px 12px"><span style="font-family:'DM Mono',monospace;font-size:18px;font-weight:700;color:${tc}">${rec.score}</span><span style="font-size:10px;color:${tc}">%</span></div><div style="position:absolute;bottom:0;left:0;right:0;height:60px;background:linear-gradient(transparent,var(--bg))"></div></div><div style="padding:14px 18px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><h3 style="font-size:18px;font-weight:800">${rec.look.name}</h3>${ab}</div><div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span style="font-size:12px;color:var(--muted)">${rec.look.vibe}</span><span style="font-size:10px;color:var(--dim)">•</span><span style="font-size:12px;color:var(--muted)">🔧 ${rec.look.maintenance}</span><span style="font-size:10px;color:var(--dim)">•</span><span style="font-size:12px;color:var(--muted)">⏱ ${rec.look.daily_time}</span></div><div style="width:100%;padding:10px 0;border-radius:10px;border:1px solid ${tc}40;background:${tc}08;text-align:center;font-size:13px;font-weight:700;color:${tc}">VIEW CUT CARD →</div></div>`;
+    cardsEl.appendChild(card);
+  });
+  showScreen("results");
+}
+
+function showDetail(rec,tc,te){
+  const hasImg=rec.preview_url&&rec.preview_url!=="null"&&rec.preview_url!==null;
+  const card=rec.look.card;
+  const at=rec.achievability==="ready"?"Your hair can achieve this today":rec.achievability==="grow"?"Needs ~"+rec.growth_gap_cm+"cm more growth (~"+rec.growth_weeks+" weeks)":"Aspirational — needs significant growth";
+  const ac=rec.achievability==="ready"?"var(--green)":rec.achievability==="grow"?"var(--orange)":"var(--red)";
+  const ab=rec.achievability==="ready"?"🟢":rec.achievability==="grow"?"🟡":"🔴";
+  const rows=[{i:"💇",l:"FADE / TAPER",v:card.fade},{i:"📏",l:"TOP LENGTH",v:card.top},{i:"↗️",l:"FRINGE",v:card.fringe},{i:"✨",l:"STYLING",v:card.styling},{i:"🧴",l:"PRODUCTS",v:card.products},{i:"🧔",l:"BEARD",v:card.beard}];
+  document.getElementById("detail-content").innerHTML=`<div style="width:100%;height:340px;position:relative;flex-shrink:0">${hasImg?`<img src="${rec.preview_url}" style="width:100%;height:100%;object-fit:cover">`:`<div style="width:100%;height:100%;background:${tc}08;display:flex;align-items:center;justify-content:center"><span style="font-size:64px">${te}</span></div>`}<button onclick="showScreen('results')" style="position:absolute;top:44px;left:16px;background:rgba(0,0,0,.6);backdrop-filter:blur(10px);border:none;border-radius:10px;padding:8px 14px;color:white;font-family:'Outfit';font-size:12px;font-weight:600;cursor:pointer">← BACK</button><div style="position:absolute;bottom:0;left:0;right:0;height:80px;background:linear-gradient(transparent,var(--bg))"></div></div><div style="padding:0 24px 20px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span class="tag" style="color:${tc}">${rec.look.tier}</span><span style="color:var(--dim)">·</span><span style="font-size:12px;color:var(--muted)">${rec.look.vibe}</span></div><h2 style="font-size:26px;font-weight:800;margin-bottom:6px">${rec.look.name} ${te}</h2><div style="background:${ac}10;border:1px solid ${ac}30;border-radius:12px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;gap:8px"><span style="font-size:16px">${ab}</span><span style="font-size:13px;color:${ac};font-weight:600">${at}</span></div><div style="display:flex;gap:8px;margin-bottom:16px"><div style="background:var(--card);border-radius:8px;padding:5px 10px;font-size:11px;color:var(--muted)">🔧 ${rec.look.maintenance}</div><div style="background:var(--card);border-radius:8px;padding:5px 10px;font-size:11px;color:var(--muted)">⏱ ${rec.look.daily_time}</div><div style="background:var(--card);border-radius:8px;padding:5px 10px;font-size:11px;color:var(--muted)">Match: ${rec.score}%</div></div><div class="tag" style="color:${tc};margin-bottom:10px">✂ CUT CARD</div><div style="background:var(--card);border:1px solid ${tc}18;border-radius:18px;padding:6px 18px 18px">${rows.map(({i:ic,l,v},idx)=>`<div style="display:flex;gap:12px;padding:12px 0;border-bottom:${idx<rows.length-1?'1px solid rgba(255,255,255,.05)':'none'}"><div style="width:34px;height:34px;border-radius:9px;background:${tc}12;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">${ic}</div><div><div style="font-family:'DM Mono',monospace;font-size:9px;color:${tc};letter-spacing:1.5px;margin-bottom:2px">${l}</div><div style="font-size:13px;color:rgba(255,255,255,.7);line-height:1.5">${v}</div></div></div>`).join("")}</div><div style="margin-top:14px;background:rgba(255,68,68,.05);border:1px solid rgba(255,68,68,.1);border-radius:14px;padding:12px 16px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span>⚠️</span><span style="font-family:'DM Mono',monospace;font-size:9px;color:#FF6B6B;letter-spacing:1.5px">BARBER NOTES</span></div><div style="font-size:12px;color:rgba(255,255,255,.5);line-height:1.6">${card.avoid}</div></div></div><div style="padding:16px 24px 36px;display:flex;flex-direction:column;gap:10px"><button class="btn" style="background:linear-gradient(135deg,${tc},${tc}CC);color:${tc==='var(--yellow)'?'#0A0A0F':'white'};box-shadow:0 0 30px ${tc}33">🔒 LOCK THIS LOOK</button><button class="btn" style="background:#25D366;color:white;display:flex;align-items:center;justify-content:center;gap:8px">Share via WhatsApp 💬</button><div style="display:flex;gap:10px"><button class="btn" style="flex:1;background:var(--card);border:1px solid var(--border);color:var(--muted);font-size:12px;padding:13px 0">📱 Save</button><button class="btn" style="flex:1;background:var(--card);border:1px solid var(--border);color:var(--muted);font-size:12px;padding:13px 0">📋 Copy</button></div></div>`;
+  showScreen("detail");
+}
+</script>
+</body>
+</html>"""
+
+
 @app.get("/api/looks")
 async def list_looks():
     """Return all available Hero Looks (for debugging/admin)."""
@@ -750,6 +992,212 @@ async def list_looks():
         "vibe": l["vibe"], "min_length_cm": l["min_length_cm"],
         "min_density": l["min_density"],
     } for l in HERO_LOOKS]}
+
+
+# ═══════════════════════════════════════════════════════
+# FRONTEND — Served directly from the backend (no CORS)
+# ═══════════════════════════════════════════════════════
+from fastapi.responses import HTMLResponse
+
+@app.get("/app", response_class=HTMLResponse)
+async def frontend():
+    """Serve the complete StyleLock frontend."""
+    return FRONTEND_HTML
+
+
+FRONTEND_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>StyleLock AI</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✂️</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0A0A0F;--card:rgba(255,255,255,0.03);--border:rgba(255,255,255,0.08);--pink:#FF3CAC;--cyan:#00E5FF;--yellow:#FFE600;--green:#00E676;--red:#FF4444;--orange:#FFB800;--text:#fff;--muted:rgba(255,255,255,0.45);--dim:rgba(255,255,255,0.25)}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{background:#050508;font-family:'Outfit',sans-serif;color:var(--text);min-height:100vh;display:flex;justify-content:center}
+  input[type="file"]{display:none}::-webkit-scrollbar{width:0}
+  .app{width:100%;max-width:420px;min-height:100vh;background:var(--bg);position:relative;overflow-x:hidden}
+  .screen{width:100%;min-height:100vh;display:flex;flex-direction:column;animation:fadeIn .3s ease}.screen.hidden{display:none}
+  .tag{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:3px;font-weight:500}
+  .btn{width:100%;padding:18px 0;border-radius:16px;border:none;font-family:'Outfit';font-size:16px;font-weight:700;cursor:pointer;position:relative;overflow:hidden}
+  .btn::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent);background-size:200% 100%;animation:shimmer 2s infinite}
+  .btn-pink{background:linear-gradient(135deg,var(--pink),#784BA0,#2B86C5);color:#fff;box-shadow:0 0 28px rgba(255,60,172,.3)}
+  .badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:8px;font-size:11px}
+  .badge-ready{background:rgba(0,230,118,.1);color:var(--green)}.badge-grow{background:rgba(255,184,0,.1);color:var(--orange)}.badge-dream{background:rgba(255,68,68,.1);color:var(--red)}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+  @keyframes slideUp{0%{opacity:0;transform:translateY(20px)}100%{opacity:1;transform:translateY(0)}}
+  @keyframes orbitSpin{0%{transform:translate(-50%,-50%) rotate(0)}100%{transform:translate(-50%,-50%) rotate(360deg)}}
+  @keyframes blob{0%,100%{border-radius:60% 40% 30% 70%/60% 30% 70% 40%}50%{border-radius:30% 60% 70% 40%/50% 60% 30% 60%}}
+  @keyframes ringPulse{0%{transform:translate(-50%,-50%) scale(1);opacity:.3}100%{transform:translate(-50%,-50%) scale(2);opacity:0}}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- INTRO -->
+  <div class="screen" id="screen-intro" style="padding:0 28px;position:relative;overflow:hidden">
+    <div style="position:absolute;top:-60px;right:-60px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(255,60,172,.2),transparent 70%);filter:blur(40px);animation:blob 6s ease-in-out infinite"></div>
+    <div style="position:absolute;bottom:-40px;left:-40px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(0,229,255,.15),transparent 70%);filter:blur(40px);animation:blob 8s ease-in-out infinite reverse"></div>
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;z-index:1">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px">
+        <span style="font-size:36px">✂️</span>
+        <div>
+          <div style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;background:linear-gradient(90deg,var(--pink),#784BA0,var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent">STYLELOCK</div>
+          <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--pink);letter-spacing:4px">AI HAIR TRY-ON</div>
+        </div>
+      </div>
+      <h1 style="font-size:30px;font-weight:900;line-height:1.2;margin-bottom:14px">See <span style="background:linear-gradient(90deg,var(--pink),var(--yellow));-webkit-background-clip:text;-webkit-text-fill-color:transparent">yourself</span> with<br>3 new looks</h1>
+      <p style="font-size:15px;color:var(--muted);line-height:1.7;margin-bottom:28px">One selfie. AI analyzes your face and hair. Generates photorealistic previews of YOU with 3 personalized hairstyles.</p>
+      <div id="intro-steps"></div>
+    </div>
+    <div style="padding-bottom:40px;z-index:1">
+      <input type="file" id="file-input" accept="image/*" capture="user">
+      <button class="btn btn-pink" onclick="document.getElementById('file-input').click()">📸 TAKE A SELFIE</button>
+      <p style="font-size:11px;color:var(--dim);text-align:center;margin-top:8px">Your photo is sent for analysis, then deleted</p>
+    </div>
+  </div>
+
+  <!-- PREVIEW -->
+  <div class="screen hidden" id="screen-preview" style="padding:44px 24px 36px">
+    <div class="tag" style="color:var(--cyan);margin-bottom:8px">PREVIEW</div>
+    <h2 style="font-size:22px;font-weight:800;margin-bottom:4px">Looking good! 📸</h2>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">This selfie will be sent for AI analysis and hairstyle generation.</p>
+    <div style="flex:1;border-radius:20px;overflow:hidden;border:2px solid rgba(0,229,255,.3);margin-bottom:16px">
+      <img id="preview-img" style="width:100%;height:100%;object-fit:cover" alt="selfie">
+    </div>
+    <div style="display:flex;gap:12px">
+      <button class="btn" style="flex:1;background:var(--card);border:1px solid var(--border);color:var(--muted);font-size:14px" onclick="resetApp()">🔄 Retake</button>
+      <button class="btn btn-pink" style="flex:2;font-size:14px" onclick="startConsult()">✨ GENERATE 3 LOOKS</button>
+    </div>
+  </div>
+
+  <!-- GENERATING -->
+  <div class="screen hidden" id="screen-generating" style="align-items:center;justify-content:center;padding:32px;position:relative;overflow:hidden;background:linear-gradient(135deg,#0A0A0F,#1A0A2E)">
+    <div style="position:absolute;top:50%;left:50%;width:280px;height:280px;border-radius:50%;border:1px solid rgba(255,60,172,.12);animation:orbitSpin 10s linear infinite"><div style="position:absolute;top:0;left:50%;width:8px;height:8px;border-radius:50%;background:var(--pink);transform:translateX(-50%);box-shadow:0 0 20px var(--pink)"></div></div>
+    <div style="position:absolute;top:50%;left:50%;width:180px;height:180px;border-radius:50%;border:1px solid rgba(0,229,255,.1);animation:orbitSpin 7s linear infinite reverse"><div style="position:absolute;top:0;left:50%;width:6px;height:6px;border-radius:50%;background:var(--cyan);transform:translateX(-50%);box-shadow:0 0 15px var(--cyan)"></div></div>
+    <div style="position:absolute;top:50%;left:50%;width:100px;height:100px;border-radius:50%;border:2px solid rgba(255,60,172,.15);animation:ringPulse 2s ease-out infinite"></div>
+    <div id="gen-emoji" style="font-size:48px;margin-bottom:20px;animation:float 2s ease-in-out infinite;z-index:1">🧠</div>
+    <p id="gen-step" style="font-family:'DM Mono',monospace;font-size:15px;z-index:1;text-align:center">Connecting...</p>
+    <p id="gen-detail" style="font-size:13px;color:var(--muted);z-index:1;text-align:center;margin-top:6px">This takes 20-60 seconds</p>
+    <div style="display:flex;gap:8px;margin-top:24px;z-index:1">
+      <div class="gen-bar" data-step="analysis"><div style="width:60px;height:4px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden"><div class="gen-fill" style="width:0%;height:100%;border-radius:2px;background:var(--pink);transition:width .5s"></div></div><span style="font-size:9px;color:var(--dim);display:block;text-align:center;margin-top:4px">Analysis</span></div>
+      <div class="gen-bar" data-step="scoring"><div style="width:60px;height:4px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden"><div class="gen-fill" style="width:0%;height:100%;border-radius:2px;background:var(--cyan);transition:width .5s"></div></div><span style="font-size:9px;color:var(--dim);display:block;text-align:center;margin-top:4px">Scoring</span></div>
+      <div class="gen-bar" data-step="generating"><div style="width:60px;height:4px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden"><div class="gen-fill" style="width:0%;height:100%;border-radius:2px;background:var(--yellow);transition:width .5s"></div></div><span style="font-size:9px;color:var(--dim);display:block;text-align:center;margin-top:4px">Try-On</span></div>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="screen hidden" id="screen-results" style="padding:44px 24px 32px;overflow:auto">
+    <div style="margin-bottom:20px">
+      <div class="tag" style="color:var(--pink);margin-bottom:8px">YOUR 3 LOOKS</div>
+      <h2 style="font-size:24px;font-weight:800;margin-bottom:4px">Here's you, 3 ways ✨</h2>
+      <p style="font-size:13px;color:var(--muted)">AI-generated previews based on your face analysis. Tap any to see the Cut Card.</p>
+    </div>
+    <div id="analysis-chips" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px"></div>
+    <div id="results-cards" style="display:flex;flex-direction:column;gap:16px"></div>
+    <button class="btn" style="background:transparent;color:var(--dim);font-size:13px;margin-top:20px;border:none" onclick="resetApp()">📸 Take a new selfie</button>
+  </div>
+
+  <!-- DETAIL -->
+  <div class="screen hidden" id="screen-detail" style="overflow:auto">
+    <div id="detail-content"></div>
+  </div>
+
+</div>
+
+<script>
+const API_BASE = "";  // Same origin — no CORS issues!
+
+let currentFile = null, currentPhotoUrl = null, consultResult = null;
+
+// Intro steps
+["📸 Take one front selfie","🧠 AI analyzes face shape, hair & density","✨ See yourself with 3 AI-generated hairstyles","🔒 Lock a look, get a barber-ready Cut Card"].forEach((t,i) => {
+  const d = document.createElement("div");
+  d.style.cssText = "display:flex;align-items:center;gap:12px;margin-bottom:11px;animation:slideUp .4s ease-out "+(0.1+i*0.06)+"s both";
+  d.innerHTML = '<span style="font-size:16px;width:28px;text-align:center">'+t.slice(0,2)+'</span><span style="font-size:14px;color:rgba(255,255,255,0.55)">'+t.slice(3)+'</span>';
+  document.getElementById("intro-steps").appendChild(d);
+});
+
+function showScreen(id){document.querySelectorAll(".screen").forEach(s=>s.classList.add("hidden"));document.getElementById("screen-"+id).classList.remove("hidden");window.scrollTo(0,0)}
+function resetApp(){currentFile=null;currentPhotoUrl=null;consultResult=null;document.getElementById("file-input").value="";showScreen("intro")}
+
+document.getElementById("file-input").addEventListener("change",function(e){
+  const f=e.target.files?.[0];if(!f)return;currentFile=f;
+  const r=new FileReader();r.onload=(ev)=>{currentPhotoUrl=ev.target.result;document.getElementById("preview-img").src=currentPhotoUrl;showScreen("preview")};r.readAsDataURL(f);
+});
+
+function updateGen(step,pct,emoji,text,detail){
+  if(emoji)document.getElementById("gen-emoji").textContent=emoji;
+  if(text)document.getElementById("gen-step").textContent=text;
+  if(detail)document.getElementById("gen-detail").textContent=detail;
+  const steps=["analysis","scoring","generating"];const idx=steps.indexOf(step);
+  document.querySelectorAll(".gen-bar").forEach((bar,i)=>{const fill=bar.querySelector(".gen-fill");if(i<idx)fill.style.width="100%";else if(i===idx)fill.style.width=pct+"%"});
+}
+
+async function startConsult(){
+  showScreen("generating");
+  updateGen("analysis",30,"🧠","Analyzing your face & hair...","Claude Vision AI is reading your features");
+  try{
+    const fd=new FormData();fd.append("file",currentFile);
+    const timers=[
+      setTimeout(()=>updateGen("analysis",100,"🧠","Face analyzed!","Scoring looks..."),3000),
+      setTimeout(()=>updateGen("scoring",100,"🎯","3 looks selected!","Generating AI previews..."),5000),
+      setTimeout(()=>updateGen("generating",20,"✨","Creating your previews...","LightX AI is generating hairstyles on your face"),7000),
+      setTimeout(()=>updateGen("generating",40,"✨","Still working...","AI generation takes 15-45 seconds per look"),15000),
+      setTimeout(()=>updateGen("generating",60,"✨","Almost there...","Waiting for LightX to finish"),30000),
+      setTimeout(()=>updateGen("generating",75,"⏳","Taking longer than usual...","LightX is still processing — hang tight"),60000),
+    ];
+    const ctrl=new AbortController();const tout=setTimeout(()=>ctrl.abort(),180000);
+    const resp=await fetch(API_BASE+"/api/consult",{method:"POST",body:fd,signal:ctrl.signal});
+    clearTimeout(tout);timers.forEach(t=>clearTimeout(t));
+    if(!resp.ok){const e=await resp.text();throw new Error("Server "+resp.status+": "+e.substring(0,150))}
+    consultResult=await resp.json();
+    if(!consultResult.success)throw new Error(consultResult.error||"Failed");
+    updateGen("generating",100,"🎉","Done!","Loading your looks...");
+    setTimeout(()=>renderResults(),500);
+  }catch(err){
+    console.error(err);const isT=err.name==="AbortError";
+    document.getElementById("gen-step").textContent=isT?"⏳ Timed out":"⚠️ Something went wrong";
+    document.getElementById("gen-detail").innerHTML='<span style="color:var(--red);font-size:13px">'+(isT?"Server took too long.":err.message)+'</span><br><div style="display:flex;gap:10px;justify-content:center;margin-top:16px"><button class="btn" style="padding:12px 20px;background:var(--card);border:1px solid var(--border);color:var(--muted);font-size:13px;width:auto" onclick="resetApp()">← Back</button><button class="btn" style="padding:12px 20px;background:linear-gradient(135deg,var(--pink),#784BA0);color:#fff;font-size:13px;width:auto" onclick="startConsult()">🔄 Retry</button></div>';
+  }
+}
+
+function renderResults(){
+  const{analysis:a,recommendations:recs}=consultResult;
+  const ch=document.getElementById("analysis-chips");ch.innerHTML="";
+  [{l:"◆",v:a.faceShape},{l:"〰",v:a.hairTexture},{l:"▓",v:a.density},{l:"📏",v:a.estimatedTopLengthCm+"cm"},{l:"⌒",v:a.hairlineState}].forEach(({l,v})=>{ch.innerHTML+='<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:5px 10px;font-size:11px;color:var(--muted);text-transform:capitalize">'+l+" "+v+"</div>"});
+  const tc={"CLEAN":"var(--cyan)","TRENDING":"var(--pink)","BOLD":"var(--yellow)"};
+  const te={"CLEAN":"💼","TRENDING":"🔥","BOLD":"⚡"};
+  const cd=document.getElementById("results-cards");cd.innerHTML="";
+  recs.forEach((r,i)=>{
+    const c=tc[r.look.tier]||"var(--pink)",e=te[r.look.tier]||"✨",has=r.preview_url&&r.preview_url!=="null"&&r.preview_url!==null;
+    const ab=r.achievability==="ready"?'<span class="badge badge-ready">🟢 Ready now</span>':r.achievability==="grow"?'<span class="badge badge-grow">🟡 ~'+r.growth_weeks+' weeks</span>':'<span class="badge badge-dream">🔴 ~'+r.growth_weeks+' weeks</span>';
+    const d=document.createElement("div");d.style.cssText="border-radius:20px;overflow:hidden;border:1px solid "+c+"30;cursor:pointer;animation:slideUp .4s ease-out "+i*.1+"s both";
+    d.onclick=()=>showDetail(r,c,e);
+    d.innerHTML='<div style="width:100%;height:300px;background:'+c+'08;position:relative">'+(has?'<img src="'+r.preview_url+'" style="width:100%;height:100%;object-fit:cover" alt="'+r.look.name+'">':'<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center"><span style="font-size:48px;margin-bottom:8px">'+e+'</span><span style="font-size:12px;color:var(--dim)">Preview unavailable</span></div>')+'<div style="position:absolute;top:12px;left:12px;background:rgba(0,0,0,.7);backdrop-filter:blur(10px);border-radius:10px;padding:6px 12px;display:flex;align-items:center;gap:6px"><span style="font-size:14px">'+e+'</span><span style="font-family:DM Mono,monospace;font-size:10px;color:'+c+'">'+r.look.tier+'</span></div><div style="position:absolute;top:12px;right:12px;background:rgba(0,0,0,.7);backdrop-filter:blur(10px);border-radius:10px;padding:6px 12px"><span style="font-family:DM Mono,monospace;font-size:18px;font-weight:700;color:'+c+'">'+r.score+'</span><span style="font-size:10px;color:'+c+'">%</span></div><div style="position:absolute;bottom:0;left:0;right:0;height:60px;background:linear-gradient(transparent,#0A0A0F)"></div></div><div style="padding:14px 18px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><h3 style="font-size:18px;font-weight:800">'+r.look.name+'</h3>'+ab+'</div><div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span style="font-size:12px;color:var(--muted)">'+r.look.vibe+'</span><span style="font-size:10px;color:var(--dim)">•</span><span style="font-size:12px;color:var(--muted)">🔧 '+r.look.maintenance+'</span><span style="font-size:10px;color:var(--dim)">•</span><span style="font-size:12px;color:var(--muted)">⏱ '+r.look.daily_time+'</span></div><div style="width:100%;padding:10px 0;border-radius:10px;border:1px solid '+c+'40;background:'+c+'08;text-align:center;font-size:13px;font-weight:700;color:'+c+'">VIEW CUT CARD →</div></div>';
+    cd.appendChild(d);
+  });
+  showScreen("results");
+}
+
+function showDetail(r,c,e){
+  const has=r.preview_url&&r.preview_url!=="null"&&r.preview_url!==null;const card=r.look.card;
+  const at=r.achievability==="ready"?"Your hair can achieve this today":r.achievability==="grow"?"Needs ~"+r.growth_gap_cm+"cm more (~"+r.growth_weeks+" weeks)":"Aspirational — needs ~"+r.growth_weeks+" weeks growth";
+  const ac=r.achievability==="ready"?"var(--green)":r.achievability==="grow"?"var(--orange)":"var(--red)";
+  const ab=r.achievability==="ready"?"🟢":r.achievability==="grow"?"🟡":"🔴";
+  const rows=[{i:"💇",l:"FADE / TAPER",v:card.fade},{i:"📏",l:"TOP LENGTH",v:card.top},{i:"↗️",l:"FRINGE",v:card.fringe},{i:"✨",l:"STYLING",v:card.styling},{i:"🧴",l:"PRODUCTS",v:card.products},{i:"🧔",l:"BEARD",v:card.beard}];
+  document.getElementById("detail-content").innerHTML='<div style="width:100%;height:340px;position:relative;flex-shrink:0">'+(has?'<img src="'+r.preview_url+'" style="width:100%;height:100%;object-fit:cover">':'<div style="width:100%;height:100%;background:'+c+'08;display:flex;align-items:center;justify-content:center"><span style="font-size:64px">'+e+'</span></div>')+'<button onclick="showScreen(\'results\')" style="position:absolute;top:44px;left:16px;background:rgba(0,0,0,.6);backdrop-filter:blur(10px);border:none;border-radius:10px;padding:8px 14px;color:#fff;font-family:Outfit;font-size:12px;font-weight:600;cursor:pointer">← BACK</button><div style="position:absolute;bottom:0;left:0;right:0;height:80px;background:linear-gradient(transparent,#0A0A0F)"></div></div><div style="padding:0 24px 20px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span class="tag" style="color:'+c+'">'+r.look.tier+'</span><span style="color:var(--dim)">·</span><span style="font-size:12px;color:var(--muted)">'+r.look.vibe+'</span></div><h2 style="font-size:26px;font-weight:800;margin-bottom:6px">'+r.look.name+' '+e+'</h2><div style="background:'+ac+'10;border:1px solid '+ac+'30;border-radius:12px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;gap:8px"><span style="font-size:16px">'+ab+'</span><span style="font-size:13px;color:'+ac+';font-weight:600">'+at+'</span></div><div style="display:flex;gap:8px;margin-bottom:16px"><div style="background:var(--card);border-radius:8px;padding:5px 10px;font-size:11px;color:var(--muted)">🔧 '+r.look.maintenance+'</div><div style="background:var(--card);border-radius:8px;padding:5px 10px;font-size:11px;color:var(--muted)">⏱ '+r.look.daily_time+'</div><div style="background:var(--card);border-radius:8px;padding:5px 10px;font-size:11px;color:var(--muted)">Match: '+r.score+'%</div></div><div class="tag" style="color:'+c+';margin-bottom:10px">✂ CUT CARD</div><div style="background:var(--card);border:1px solid '+c+'18;border-radius:18px;padding:6px 18px 18px">'+rows.map((x,idx)=>'<div style="display:flex;gap:12px;padding:12px 0;border-bottom:'+(idx<rows.length-1?"1px solid rgba(255,255,255,.05)":"none")+'"><div style="width:34px;height:34px;border-radius:9px;background:'+c+'12;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">'+x.i+'</div><div><div style="font-family:DM Mono,monospace;font-size:9px;color:'+c+';letter-spacing:1.5px;margin-bottom:2px">'+x.l+'</div><div style="font-size:13px;color:rgba(255,255,255,.7);line-height:1.5">'+x.v+'</div></div></div>').join("")+'</div><div style="margin-top:14px;background:rgba(255,68,68,.05);border:1px solid rgba(255,68,68,.1);border-radius:14px;padding:12px 16px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span>⚠️</span><span style="font-family:DM Mono,monospace;font-size:9px;color:#FF6B6B;letter-spacing:1.5px">BARBER NOTES</span></div><div style="font-size:12px;color:rgba(255,255,255,.5);line-height:1.6">'+card.avoid+'</div></div></div><div style="padding:16px 24px 36px;display:flex;flex-direction:column;gap:10px"><button class="btn" style="background:linear-gradient(135deg,'+c+','+c+'CC);color:'+(c==="var(--yellow)"?"#0A0A0F":"#fff")+';box-shadow:0 0 30px '+c+'33">🔒 LOCK THIS LOOK</button><button class="btn" style="background:#25D366;color:#fff;display:flex;align-items:center;justify-content:center;gap:8px">Share via WhatsApp 💬</button><div style="display:flex;gap:10px"><button class="btn" style="flex:1;background:var(--card);border:1px solid var(--border);color:var(--muted);font-size:12px;padding:13px 0">📱 Save</button><button class="btn" style="flex:1;background:var(--card);border:1px solid var(--border);color:var(--muted);font-size:12px;padding:13px 0">📋 Copy</button></div></div>';
+  showScreen("detail");
+}
+</script>
+</body>
+</html>"""
 
 
 # ═══════════════════════════════════════════════════════
