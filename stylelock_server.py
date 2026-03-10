@@ -664,8 +664,9 @@ async def generate_hairstyle_vmodel(target_url: str, look: dict) -> Optional[str
                     print(f"    [{look_name}] ✅ Instant result (string)!")
                     return output
             
-            # Poll for result - check multiple possible field names
-            task_id = data.get("task_id") or data.get("id") or data.get("taskId") or data.get("orderId")
+            # Poll for result - task_id is inside 'result' object
+            result_obj = data.get("result", {})
+            task_id = result_obj.get("task_id") or data.get("task_id") or data.get("id")
             if not task_id:
                 print(f"    [{look_name}] ❌ No task_id. Full response: {json.dumps(data)[:300]}")
                 return None
@@ -678,24 +679,39 @@ async def generate_hairstyle_vmodel(target_url: str, look: dict) -> Optional[str
                 poll_resp = await client.get(f"{VMODEL_TASK_URL}/{task_id}", headers=headers)
                 
                 if poll_resp.status_code != 200:
+                    print(f"    [{look_name}] Poll {attempt+1}: HTTP {poll_resp.status_code}")
                     continue
                 
                 poll_data = poll_resp.json()
-                status = poll_data.get("status", "unknown")
                 
-                if status == "succeeded":
-                    output = poll_data.get("output")
+                # Handle nested result structure
+                result_data = poll_data.get("result", poll_data)
+                status = result_data.get("status") or poll_data.get("status", "unknown")
+                
+                if attempt < 3 or attempt % 5 == 0:
+                    print(f"    [{look_name}] Poll {attempt+1}: status={status}")
+                
+                if status in ["succeeded", "completed", "success", "done"]:
+                    # Try multiple possible output locations
+                    output = (
+                        result_data.get("output") or 
+                        result_data.get("output_url") or 
+                        result_data.get("image_url") or
+                        result_data.get("result_url") or
+                        poll_data.get("output")
+                    )
                     if output:
                         url = output[0] if isinstance(output, list) else output
-                        print(f"    [{look_name}] ✅ Done!")
+                        print(f"    [{look_name}] ✅ Done! URL: {url[:60]}...")
                         return url
+                    print(f"    [{look_name}] ❌ Succeeded but no output. Response: {json.dumps(poll_data)[:200]}")
                     return None
                 
-                if status in ["failed", "error"]:
-                    print(f"    [{look_name}] ❌ Failed")
+                if status in ["failed", "error", "cancelled"]:
+                    print(f"    [{look_name}] ❌ Failed: {json.dumps(poll_data)[:150]}")
                     return None
             
-            print(f"    [{look_name}] ❌ Timeout")
+            print(f"    [{look_name}] ❌ Timeout after 40 polls")
             return None
             
         except Exception as e:
