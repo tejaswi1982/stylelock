@@ -867,6 +867,10 @@ async def serve_app():
         .achievability-ready { background: #00c9a7; color: #000; }
         .achievability-grow { background: #ffea00; color: #000; }
         .achievability-dream { background: #ff6b35; color: #fff; }
+        .achievability-section { margin-top: 12px; }
+        .achievability-tip { font-size: 11px; color: #888; margin-top: 6px; font-style: italic; }
+        .most-achievable-badge { background: linear-gradient(135deg, #ffea00, #ff6b35); color: #000; text-align: center; padding: 8px; font-size: 11px; font-weight: 800; letter-spacing: 1px; }
+        .look-card.featured { border: 2px solid #ffea00; box-shadow: 0 0 20px rgba(255, 234, 0, 0.3); }
         .cut-card { background: #0a0a0a; border-radius: 12px; padding: 16px; margin-top: 16px; font-size: 12px; }
         .cut-card-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #222; }
         .cut-card-row:last-child { border-bottom: none; }
@@ -886,12 +890,18 @@ async def serve_app():
         
         <div class="camera-section" id="cameraSection">
             <div class="camera-icon">📸</div>
-            <div class="camera-title">Take a Selfie</div>
+            <div class="camera-title">Upload Your Photo</div>
             <div class="camera-desc">Front-facing, good lighting, face clearly visible</div>
-            <label class="btn btn-primary">
-                OPEN CAMERA
-                <input type="file" accept="image/*" capture="user" id="cameraInput">
-            </label>
+            <div style="display: flex; flex-direction: column; gap: 12px; width: 100%;">
+                <label class="btn btn-primary" style="width: 100%;">
+                    📷 TAKE SELFIE
+                    <input type="file" accept="image/*" capture="user" id="cameraInput">
+                </label>
+                <label class="btn btn-secondary" style="width: 100%; background: #333; border: 1px solid #555;">
+                    🖼️ CHOOSE FROM GALLERY
+                    <input type="file" accept="image/*" id="galleryInput">
+                </label>
+            </div>
         </div>
         
         <div class="preview-section" id="previewSection">
@@ -927,7 +937,7 @@ async def serve_app():
     <script>
         let imageBase64 = '';
         
-        document.getElementById('cameraInput').addEventListener('change', function(e) {
+        function handleImageSelect(e) {
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
@@ -938,7 +948,10 @@ async def serve_app():
                 document.getElementById('previewSection').style.display = 'block';
             };
             reader.readAsDataURL(file);
-        });
+        }
+        
+        document.getElementById('cameraInput').addEventListener('change', handleImageSelect);
+        document.getElementById('galleryInput').addEventListener('change', handleImageSelect);
         
         function reset() {
             imageBase64 = '';
@@ -996,23 +1009,59 @@ async def serve_app():
             document.getElementById('resultsSection').style.display = 'block';
             
             const a = data.analysis || {};
+            const userLength = a.estimated_top_length_cm || 5;
+            
             document.getElementById('analysisTags').innerHTML = `
                 <span class="analysis-tag">${a.face_shape || 'unknown'} face</span>
                 <span class="analysis-tag">${a.hair_texture || 'unknown'} hair</span>
                 <span class="analysis-tag">${a.hair_density || 'medium'} density</span>
-                <span class="analysis-tag">~${a.estimated_top_length_cm || '?'}cm</span>
+                <span class="analysis-tag">~${userLength}cm length</span>
             `;
             
+            // Find most achievable look (ready first, then shortest grow time)
+            const recs = data.recommendations || [];
+            let mostAchievableIdx = 0;
+            let bestScore = -999;
+            recs.forEach((look, idx) => {
+                let score = 0;
+                if (look.achievability === 'ready') score = 100;
+                else if (look.achievability === 'grow') score = 50 - (look.growth_weeks || 0);
+                else score = 0;
+                if (score > bestScore) {
+                    bestScore = score;
+                    mostAchievableIdx = idx;
+                }
+            });
+            
             let html = '';
-            (data.recommendations || []).forEach(look => {
+            recs.forEach((look, idx) => {
                 const tierClass = (look.tier || 'trending').toLowerCase();
                 const achClass = look.achievability || 'ready';
-                const achText = achClass === 'ready' ? '🟢 Ready Now' : achClass === 'grow' ? `🟡 ~${look.growth_weeks || '?'} weeks` : '🔴 Dream Look';
+                const isReady = achClass === 'ready';
+                const isMostAchievable = idx === mostAchievableIdx;
+                
+                let achText, achTip;
+                if (isReady) {
+                    achText = '🟢 Ready Now';
+                    achTip = 'Your current hair length works for this style!';
+                } else if (achClass === 'grow') {
+                    const weeks = look.growth_weeks || 4;
+                    achText = `🟡 ~${weeks} weeks`;
+                    achTip = `Need ~${weeks} weeks of growth (${Math.round(weeks * 0.3)}cm more)`;
+                } else {
+                    achText = '🔴 Dream Look';
+                    achTip = 'Significant growth needed - save this for later!';
+                }
+                
                 const preview = look.preview_url ? `<img src="${look.preview_url}" class="look-preview" onerror="this.style.display='none'">` : `<div class="look-preview-placeholder">Preview generating...</div>`;
                 const cutCard = look.cut_card || {};
                 
+                const mostAchievableBadge = isMostAchievable ? `<div class="most-achievable-badge">⭐ BEST MATCH FOR YOUR HAIR</div>` : '';
+                const cardClass = isMostAchievable ? 'look-card featured' : 'look-card';
+                
                 html += `
-                <div class="look-card">
+                <div class="${cardClass}">
+                    ${mostAchievableBadge}
                     ${preview}
                     <div class="match-score"><em>${look.match_percentage || '?'}%</em> match</div>
                     <div class="look-info">
@@ -1024,7 +1073,10 @@ async def serve_app():
                             <span>⏱️ ${look.daily_time || '3-5 min'}</span>
                             ${look.thinning_friendly ? '<span>✓ Thinning-friendly</span>' : ''}
                         </div>
-                        <span class="achievability achievability-${achClass}">${achText}</span>
+                        <div class="achievability-section">
+                            <span class="achievability achievability-${achClass}">${achText}</span>
+                            <div class="achievability-tip">${achTip}</div>
+                        </div>
                         <div class="cut-card">
                             <div class="cut-card-row"><span class="cut-card-label">Fade</span><span class="cut-card-value">${cutCard.fade || '-'}</span></div>
                             <div class="cut-card-row"><span class="cut-card-label">Top Length</span><span class="cut-card-value">${cutCard.top_length || '-'}</span></div>
