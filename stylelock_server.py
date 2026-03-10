@@ -25,7 +25,7 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 VMODEL_API_KEY = os.getenv("VMODEL_API_KEY", "TnFvIrhRQMtRyLmhNNo1OC1ft2gGgRb5ayAtIpt5emC7SZljePfUNu08hDwZbKty8HjtFMWh34g5LoeLUc0jOA==")
 
 VMODEL_API_URL = "https://api.vmodel.ai/api/tasks/v1/create"
-VMODEL_TASK_URL = "https://api.vmodel.ai/api/tasks/v1"
+VMODEL_TASK_URL = "https://api.vmodel.ai/api/tasks/v1/get"
 VMODEL_HAIRSTYLE_VERSION = "5c0440717a995b0bbd93377bd65dbb4fe360f67967c506aa6bd8f6b660733a7e"
 
 CLAUDE_MODEL = "claude-opus-4-20250514"
@@ -676,7 +676,11 @@ async def generate_hairstyle_vmodel(target_url: str, look: dict) -> Optional[str
             for attempt in range(40):
                 await asyncio.sleep(3)
                 
-                poll_resp = await client.get(f"{VMODEL_TASK_URL}/{task_id}", headers=headers)
+                poll_url = f"{VMODEL_TASK_URL}/{task_id}"
+                if attempt == 0:
+                    print(f"    [{look_name}] Poll URL: {poll_url}")
+                
+                poll_resp = await client.get(poll_url, headers=headers)
                 
                 if poll_resp.status_code != 200:
                     print(f"    [{look_name}] Poll {attempt+1}: HTTP {poll_resp.status_code}")
