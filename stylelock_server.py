@@ -835,7 +835,7 @@ async def serve_app():
         .btn-primary { background: linear-gradient(135deg, #ff2d95, #ff6b35); color: white; }
         input[type="file"] { display: none; }
         .preview-section { display: none; margin: 20px 0; }
-        .preview-image { width: 100%; max-height: 300px; object-fit: cover; border-radius: 16px; }
+        .preview-image { width: 100%; max-height: 400px; object-fit: contain; border-radius: 16px; background: #111; }
         .preview-actions { display: flex; gap: 12px; margin-top: 16px; }
         .btn-secondary { flex: 1; background: #222; color: #fff; border: 1px solid #333; }
         .btn-generate { flex: 2; background: linear-gradient(135deg, #00f0ff, #00c9a7); color: #000; }
@@ -965,13 +965,29 @@ async def serve_app():
                     body: JSON.stringify({image_base64: imageBase64, vibe_preference: 'balanced'})
                 });
                 clearInterval(interval);
-                if (!resp.ok) throw new Error((await resp.json()).detail || 'Request failed');
-                showResults(await resp.json());
+                
+                const responseText = await resp.text();
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (parseErr) {
+                    throw new Error('Invalid response from server');
+                }
+                
+                if (!resp.ok) {
+                    throw new Error(data.detail || 'Request failed');
+                }
+                
+                if (!data.success) {
+                    throw new Error(data.error || 'Generation failed');
+                }
+                
+                showResults(data);
             } catch(e) {
                 clearInterval(interval);
                 document.getElementById('loadingSection').style.display = 'none';
                 document.getElementById('errorSection').style.display = 'block';
-                document.getElementById('errorText').textContent = e.message;
+                document.getElementById('errorText').textContent = e.message || 'Something went wrong';
             }
         }
         
@@ -979,40 +995,41 @@ async def serve_app():
             document.getElementById('loadingSection').style.display = 'none';
             document.getElementById('resultsSection').style.display = 'block';
             
-            const a = data.analysis;
+            const a = data.analysis || {};
             document.getElementById('analysisTags').innerHTML = `
-                <span class="analysis-tag">${a.face_shape} face</span>
-                <span class="analysis-tag">${a.hair_texture} hair</span>
-                <span class="analysis-tag">${a.hair_density} density</span>
-                <span class="analysis-tag">~${a.estimated_top_length_cm}cm</span>
+                <span class="analysis-tag">${a.face_shape || 'unknown'} face</span>
+                <span class="analysis-tag">${a.hair_texture || 'unknown'} hair</span>
+                <span class="analysis-tag">${a.hair_density || 'medium'} density</span>
+                <span class="analysis-tag">~${a.estimated_top_length_cm || '?'}cm</span>
             `;
             
             let html = '';
-            data.recommendations.forEach(look => {
-                const tierClass = look.tier.toLowerCase();
-                const achClass = look.achievability;
-                const achText = look.achievability === 'ready' ? '🟢 Ready Now' : look.achievability === 'grow' ? `🟡 ~${look.growth_weeks} weeks` : '🔴 Dream Look';
-                const preview = look.preview_url ? `<img src="${look.preview_url}" class="look-preview">` : `<div class="look-preview-placeholder">Preview ${look.preview_error||'pending'}</div>`;
+            (data.recommendations || []).forEach(look => {
+                const tierClass = (look.tier || 'trending').toLowerCase();
+                const achClass = look.achievability || 'ready';
+                const achText = achClass === 'ready' ? '🟢 Ready Now' : achClass === 'grow' ? `🟡 ~${look.growth_weeks || '?'} weeks` : '🔴 Dream Look';
+                const preview = look.preview_url ? `<img src="${look.preview_url}" class="look-preview" onerror="this.style.display='none'">` : `<div class="look-preview-placeholder">Preview generating...</div>`;
+                const cutCard = look.cut_card || {};
                 
                 html += `
                 <div class="look-card">
                     ${preview}
-                    <div class="match-score"><em>${look.match_percentage}%</em> match</div>
+                    <div class="match-score"><em>${look.match_percentage || '?'}%</em> match</div>
                     <div class="look-info">
-                        <span class="look-tier tier-${tierClass}">${look.tier}</span>
-                        <div class="look-name">${look.name}</div>
-                        <div class="look-vibe">${look.vibe}</div>
+                        <span class="look-tier tier-${tierClass}">${look.tier || 'TRENDING'}</span>
+                        <div class="look-name">${look.name || 'Hairstyle'}</div>
+                        <div class="look-vibe">${look.vibe || ''}</div>
                         <div class="look-meta">
-                            <span>🔧 ${look.maintenance}</span>
-                            <span>⏱️ ${look.daily_time}</span>
+                            <span>🔧 ${look.maintenance || 'Medium'}</span>
+                            <span>⏱️ ${look.daily_time || '3-5 min'}</span>
                             ${look.thinning_friendly ? '<span>✓ Thinning-friendly</span>' : ''}
                         </div>
                         <span class="achievability achievability-${achClass}">${achText}</span>
                         <div class="cut-card">
-                            <div class="cut-card-row"><span class="cut-card-label">Fade</span><span class="cut-card-value">${look.cut_card.fade}</span></div>
-                            <div class="cut-card-row"><span class="cut-card-label">Top Length</span><span class="cut-card-value">${look.cut_card.top_length}</span></div>
-                            <div class="cut-card-row"><span class="cut-card-label">Styling</span><span class="cut-card-value">${look.cut_card.styling}</span></div>
-                            <div class="cut-card-row"><span class="cut-card-label">Products</span><span class="cut-card-value">${look.cut_card.products}</span></div>
+                            <div class="cut-card-row"><span class="cut-card-label">Fade</span><span class="cut-card-value">${cutCard.fade || '-'}</span></div>
+                            <div class="cut-card-row"><span class="cut-card-label">Top Length</span><span class="cut-card-value">${cutCard.top_length || '-'}</span></div>
+                            <div class="cut-card-row"><span class="cut-card-label">Styling</span><span class="cut-card-value">${cutCard.styling || '-'}</span></div>
+                            <div class="cut-card-row"><span class="cut-card-label">Products</span><span class="cut-card-value">${cutCard.products || '-'}</span></div>
                         </div>
                     </div>
                 </div>`;
