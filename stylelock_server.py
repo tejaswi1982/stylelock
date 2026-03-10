@@ -1,7 +1,12 @@
 """
-StyleLock AI - Complete Backend Server v2.1
-With all 16 Hero Looks and real reference image URLs
-Uses VModel for hairstyle generation, Claude Opus 4.5 for analysis
+StyleLock AI - Complete Backend Server v3.0
+Features:
+- Share/Save functionality
+- Lock This Look flow
+- Cut Card detail view (tap to expand)
+- Vibe preference selector (Safe / Balanced / Bold)
+- Calibrated match percentages (70-92% realistic range)
+- Performance optimizations
 """
 
 import os
@@ -421,7 +426,7 @@ HERO_LOOKS = [
 # FASTAPI APP
 # ============================================================
 
-app = FastAPI(title="StyleLock AI", version="2.1")
+app = FastAPI(title="StyleLock AI", version="3.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -433,7 +438,7 @@ app.add_middleware(
 
 class ConsultRequest(BaseModel):
     image_base64: str
-    vibe_preference: str = "balanced"
+    vibe_preference: str = "balanced"  # safe, balanced, bold
 
 # ============================================================
 # HELPER FUNCTIONS
@@ -539,7 +544,7 @@ Be accurate. Estimate hair length in centimeters carefully."""
 
 def score_and_recommend(analysis: dict, vibe: str) -> list:
     """Score all 16 looks against user's attributes, return top 3"""
-    print("Step 2: Scoring 16 looks...")
+    print(f"Step 2: Scoring 16 looks (vibe: {vibe})...")
     
     face = analysis.get("face_shape", "oval").lower()
     texture = analysis.get("hair_texture", "wavy").lower()
@@ -570,7 +575,15 @@ def score_and_recommend(analysis: dict, vibe: str) -> list:
         elif vibe == "balanced" and look["tier"] == "TRENDING":
             vibe_score = 15
         
-        total_score = face_score + texture_score + thinning_bonus + vibe_score
+        raw_score = face_score + texture_score + thinning_bonus + vibe_score
+        
+        # CALIBRATED MATCH PERCENTAGE: Map raw score to realistic 70-92% range
+        # Raw scores typically range from 50-100
+        # We want to output 70-92%
+        min_raw, max_raw = 50, 100
+        min_pct, max_pct = 70, 92
+        calibrated_pct = min_pct + (raw_score - min_raw) * (max_pct - min_pct) / (max_raw - min_raw)
+        calibrated_pct = max(min_pct, min(max_pct, int(calibrated_pct)))
         
         # Achievability
         min_length = look["min_length_cm"]
@@ -587,8 +600,8 @@ def score_and_recommend(analysis: dict, vibe: str) -> list:
         
         scored_looks.append({
             **look,
-            "total_score": total_score,
-            "match_percentage": min(100, int(total_score)),
+            "total_score": raw_score,
+            "match_percentage": calibrated_pct,
             "achievability": achievability,
             "growth_weeks": growth_weeks,
             "reference_url": ref.get("source", "")
@@ -596,16 +609,26 @@ def score_and_recommend(analysis: dict, vibe: str) -> list:
     
     scored_looks.sort(key=lambda x: x["total_score"], reverse=True)
     
-    # Pick best from each tier
+    # Pick best from each tier based on vibe preference
     result = []
     tiers_found = set()
-    for look in scored_looks:
-        if look["tier"] not in tiers_found:
-            tiers_found.add(look["tier"])
-            result.append(look)
-            if len(result) >= 3:
+    
+    # Prioritize tiers based on vibe
+    if vibe == "safe":
+        tier_order = ["CLEAN", "TRENDING", "BOLD"]
+    elif vibe == "bold":
+        tier_order = ["BOLD", "TRENDING", "CLEAN"]
+    else:  # balanced
+        tier_order = ["TRENDING", "CLEAN", "BOLD"]
+    
+    for tier in tier_order:
+        for look in scored_looks:
+            if look["tier"] == tier and tier not in tiers_found:
+                tiers_found.add(tier)
+                result.append(look)
                 break
     
+    # Fill remaining slots
     while len(result) < 3:
         for look in scored_looks:
             if look not in result:
@@ -645,14 +668,11 @@ async def generate_hairstyle_vmodel(target_url: str, look: dict) -> Optional[str
         try:
             resp = await client.post(VMODEL_API_URL, headers=headers, json=payload)
             
-            print(f"    [{look_name}] Response status: {resp.status_code}")
-            
             if resp.status_code != 200:
-                print(f"    [{look_name}] ❌ API error: {resp.text[:200]}")
+                print(f"    [{look_name}] ❌ API error: {resp.status_code}")
                 return None
             
             data = resp.json()
-            print(f"    [{look_name}] Response keys: {list(data.keys())}")
             
             # Check immediate result
             if data.get("status") == "succeeded" and data.get("output"):
@@ -668,7 +688,7 @@ async def generate_hairstyle_vmodel(target_url: str, look: dict) -> Optional[str
             result_obj = data.get("result", {})
             task_id = result_obj.get("task_id") or data.get("task_id") or data.get("id")
             if not task_id:
-                print(f"    [{look_name}] ❌ No task_id. Full response: {json.dumps(data)[:300]}")
+                print(f"    [{look_name}] ❌ No task_id")
                 return None
             
             print(f"    [{look_name}] Polling task {task_id}...")
@@ -677,13 +697,9 @@ async def generate_hairstyle_vmodel(target_url: str, look: dict) -> Optional[str
                 await asyncio.sleep(3)
                 
                 poll_url = f"{VMODEL_TASK_URL}/{task_id}"
-                if attempt == 0:
-                    print(f"    [{look_name}] Poll URL: {poll_url}")
-                
                 poll_resp = await client.get(poll_url, headers=headers)
                 
                 if poll_resp.status_code != 200:
-                    print(f"    [{look_name}] Poll {attempt+1}: HTTP {poll_resp.status_code}")
                     continue
                 
                 poll_data = poll_resp.json()
@@ -691,9 +707,6 @@ async def generate_hairstyle_vmodel(target_url: str, look: dict) -> Optional[str
                 # Handle nested result structure
                 result_data = poll_data.get("result", poll_data)
                 status = result_data.get("status") or poll_data.get("status", "unknown")
-                
-                if attempt < 3 or attempt % 5 == 0:
-                    print(f"    [{look_name}] Poll {attempt+1}: status={status}")
                 
                 if status in ["succeeded", "completed", "success", "done"]:
                     # Try multiple possible output locations
@@ -706,16 +719,15 @@ async def generate_hairstyle_vmodel(target_url: str, look: dict) -> Optional[str
                     )
                     if output:
                         url = output[0] if isinstance(output, list) else output
-                        print(f"    [{look_name}] ✅ Done! URL: {url[:60]}...")
+                        print(f"    [{look_name}] ✅ Done!")
                         return url
-                    print(f"    [{look_name}] ❌ Succeeded but no output. Response: {json.dumps(poll_data)[:200]}")
                     return None
                 
                 if status in ["failed", "error", "cancelled"]:
-                    print(f"    [{look_name}] ❌ Failed: {json.dumps(poll_data)[:150]}")
+                    print(f"    [{look_name}] ❌ Failed")
                     return None
             
-            print(f"    [{look_name}] ❌ Timeout after 40 polls")
+            print(f"    [{look_name}] ❌ Timeout")
             return None
             
         except Exception as e:
@@ -753,7 +765,9 @@ async def generate_all_previews(target_url: str, looks: list) -> list:
 async def health():
     return {
         "status": "ok",
-        "service": "StyleLock AI v2.1",
+        "service": "StyleLock AI",
+        "version": "3.0",
+        "features": ["vibe_selector", "lock_look", "share", "cut_card_detail"],
         "looks_count": len(HERO_LOOKS),
         "anthropic_key": bool(ANTHROPIC_API_KEY),
         "vmodel_key": bool(VMODEL_API_KEY)
@@ -791,6 +805,7 @@ async def debug():
 async def consult(request: ConsultRequest):
     """Main consultation - full pipeline"""
     print("\n" + "="*60 + "\nNEW CONSULTATION\n" + "="*60)
+    print(f"Vibe preference: {request.vibe_preference}")
     
     try:
         analysis = await analyze_with_claude(request.image_base64)
@@ -818,124 +833,286 @@ async def serve_app():
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-    <title>StyleLock AI — Prototype Your Next Self</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>StyleLock — Lock Your Next Self</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #fff; min-height: 100vh; }
-        .container { max-width: 420px; margin: 0 auto; padding: 20px; }
-        .header { text-align: center; padding: 40px 0 30px; }
-        .logo { font-size: 28px; font-weight: 900; background: linear-gradient(135deg, #ff2d95, #00f0ff, #ffea00); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .tagline { font-size: 12px; color: #666; margin-top: 8px; letter-spacing: 2px; text-transform: uppercase; }
-        .camera-section { background: linear-gradient(180deg, #1a1a2e, #16213e); border-radius: 24px; padding: 30px 20px; margin: 20px 0; text-align: center; }
-        .camera-icon { font-size: 48px; margin-bottom: 16px; }
-        .camera-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
-        .camera-desc { font-size: 13px; color: #888; margin-bottom: 24px; }
-        .btn { display: inline-block; padding: 16px 32px; border: none; border-radius: 50px; font-size: 14px; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; }
-        .btn-primary { background: linear-gradient(135deg, #ff2d95, #ff6b35); color: white; }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: #0a0a0a; color: #fff; min-height: 100vh; overflow-x: hidden; }
+        .container { max-width: 420px; margin: 0 auto; padding: 16px; min-height: 100vh; }
+        
+        /* Header */
+        .header { text-align: center; padding: 32px 0 24px; }
+        .logo { font-size: 32px; font-weight: 900; letter-spacing: -1px; background: linear-gradient(135deg, #fff 0%, #888 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .tagline { font-size: 11px; color: #666; margin-top: 6px; letter-spacing: 3px; text-transform: uppercase; }
+        
+        /* Vibe Selector */
+        .vibe-section { margin: 20px 0; }
+        .vibe-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; }
+        .vibe-selector { display: flex; gap: 8px; }
+        .vibe-btn { flex: 1; padding: 14px 8px; border: 2px solid #333; background: transparent; border-radius: 12px; color: #888; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; text-transform: uppercase; letter-spacing: 1px; }
+        .vibe-btn.active { border-color: #fff; color: #fff; background: #1a1a1a; }
+        .vibe-btn:hover { border-color: #555; }
+        .vibe-btn.safe.active { border-color: #00c9a7; color: #00c9a7; }
+        .vibe-btn.balanced.active { border-color: #D4FF00; color: #D4FF00; }
+        .vibe-btn.bold.active { border-color: #0047FF; color: #0047FF; }
+        
+        /* Camera Section */
+        .camera-section { background: #111; border: 2px dashed #333; border-radius: 20px; padding: 40px 20px; margin: 20px 0; text-align: center; }
+        .camera-icon { font-size: 48px; margin-bottom: 16px; filter: grayscale(1); }
+        .camera-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+        .camera-desc { font-size: 12px; color: #666; margin-bottom: 24px; line-height: 1.5; }
+        .upload-btns { display: flex; flex-direction: column; gap: 12px; }
+        .btn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 16px 24px; border: none; border-radius: 12px; font-size: 13px; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; transition: all 0.2s; }
+        .btn-primary { background: #fff; color: #000; }
+        .btn-primary:hover { background: #eee; transform: scale(0.98); }
+        .btn-secondary { background: #1a1a1a; color: #fff; border: 1px solid #333; }
+        .btn-secondary:hover { background: #222; }
         input[type="file"] { display: none; }
+        
+        /* Preview Section */
         .preview-section { display: none; margin: 20px 0; }
-        .preview-image { width: 100%; max-height: 400px; object-fit: contain; border-radius: 16px; background: #111; }
+        .preview-container { position: relative; border-radius: 16px; overflow: hidden; background: #111; }
+        .preview-image { width: 100%; max-height: 400px; object-fit: contain; display: block; }
+        .preview-badge { position: absolute; top: 12px; left: 12px; background: #000; padding: 6px 12px; border-radius: 20px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
         .preview-actions { display: flex; gap: 12px; margin-top: 16px; }
-        .btn-secondary { flex: 1; background: #222; color: #fff; border: 1px solid #333; }
-        .btn-generate { flex: 2; background: linear-gradient(135deg, #00f0ff, #00c9a7); color: #000; }
-        .loading-section { display: none; text-align: center; padding: 60px 20px; }
-        .spinner { width: 60px; height: 60px; border: 3px solid #333; border-top-color: #ff2d95; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 24px; }
+        .preview-actions .btn { flex: 1; }
+        .btn-generate { background: #D4FF00; color: #000; }
+        .btn-generate:hover { background: #c4ef00; }
+        
+        /* Loading Section */
+        .loading-section { display: none; padding: 60px 20px; text-align: center; }
+        .loading-visual { position: relative; width: 120px; height: 120px; margin: 0 auto 32px; }
+        .loading-ring { position: absolute; inset: 0; border: 3px solid #222; border-top-color: #D4FF00; border-radius: 50%; animation: spin 1s linear infinite; }
+        .loading-ring:nth-child(2) { inset: 10px; border-top-color: #0047FF; animation-duration: 1.5s; animation-direction: reverse; }
+        .loading-ring:nth-child(3) { inset: 20px; border-top-color: #fff; animation-duration: 2s; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .loading-text { font-size: 14px; color: #888; }
-        .loading-step { color: #00f0ff; font-weight: 600; }
-        .results-section { display: none; }
-        .results-title { font-size: 20px; font-weight: 700; margin-bottom: 20px; text-align: center; }
-        .analysis-summary { background: #111; border-radius: 16px; padding: 20px; margin-bottom: 24px; }
-        .analysis-title { font-size: 14px; color: #666; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
-        .analysis-tags { display: flex; flex-wrap: wrap; gap: 8px; }
-        .analysis-tag { background: #222; padding: 6px 12px; border-radius: 20px; font-size: 12px; }
-        .look-card { background: linear-gradient(180deg, #1a1a2e, #0f0f1a); border-radius: 20px; overflow: hidden; margin-bottom: 20px; border: 1px solid #2a2a4a; position: relative; }
-        .look-preview { width: 100%; aspect-ratio: 3/4; object-fit: cover; background: #111; }
-        .look-preview-placeholder { width: 100%; aspect-ratio: 3/4; background: linear-gradient(135deg, #1a1a2e, #2a2a4a); display: flex; align-items: center; justify-content: center; color: #666; font-size: 14px; }
-        .look-info { padding: 20px; }
-        .look-tier { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
-        .tier-clean { background: #00c9a7; color: #000; }
-        .tier-trending { background: #ff6b35; color: #000; }
-        .tier-bold { background: #ff2d95; color: #fff; }
-        .look-name { font-size: 22px; font-weight: 800; margin-bottom: 8px; }
-        .look-vibe { font-size: 13px; color: #888; margin-bottom: 16px; }
-        .look-meta { display: flex; gap: 16px; font-size: 12px; color: #666; }
-        .match-score { position: absolute; top: 16px; right: 16px; background: rgba(0,0,0,0.8); padding: 8px 12px; border-radius: 20px; font-size: 14px; font-weight: 700; }
-        .match-score em { color: #00f0ff; font-style: normal; }
-        .achievability { display: inline-block; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; margin-top: 12px; }
-        .achievability-ready { background: #00c9a7; color: #000; }
-        .achievability-grow { background: #ffea00; color: #000; }
-        .achievability-dream { background: #ff6b35; color: #fff; }
-        .achievability-section { margin-top: 12px; }
-        .achievability-tip { font-size: 11px; color: #888; margin-top: 6px; font-style: italic; }
-        .most-achievable-badge { background: linear-gradient(135deg, #ffea00, #ff6b35); color: #000; text-align: center; padding: 8px; font-size: 11px; font-weight: 800; letter-spacing: 1px; }
-        .look-card.featured { border: 2px solid #ffea00; box-shadow: 0 0 20px rgba(255, 234, 0, 0.3); }
-        .cut-card { background: #0a0a0a; border-radius: 12px; padding: 16px; margin-top: 16px; font-size: 12px; }
-        .cut-card-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #222; }
-        .cut-card-row:last-child { border-bottom: none; }
-        .cut-card-label { color: #666; }
-        .cut-card-value { color: #fff; font-weight: 500; text-align: right; max-width: 60%; }
-        .error-section { display: none; text-align: center; padding: 40px 20px; }
+        .loading-text { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 3px; }
+        .loading-step { display: block; color: #fff; font-size: 14px; font-weight: 600; margin-top: 8px; letter-spacing: 0; text-transform: none; }
+        
+        /* Error Section */
+        .error-section { display: none; text-align: center; padding: 60px 20px; }
         .error-icon { font-size: 48px; margin-bottom: 16px; }
-        .error-text { color: #ff6b6b; margin-bottom: 20px; }
+        .error-text { color: #ff6b6b; margin-bottom: 24px; font-size: 14px; }
+        
+        /* Results Section */
+        .results-section { display: none; }
+        .results-header { text-align: center; margin-bottom: 24px; }
+        .results-title { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 8px; }
+        .results-headline { font-size: 28px; font-weight: 900; letter-spacing: -1px; }
+        
+        /* Analysis Card */
+        .analysis-card { background: #111; border-radius: 16px; padding: 20px; margin-bottom: 24px; }
+        .analysis-title { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; }
+        .analysis-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        .analysis-item { background: #1a1a1a; padding: 10px 12px; border-radius: 8px; }
+        .analysis-label { font-size: 9px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+        .analysis-value { font-size: 13px; font-weight: 600; margin-top: 2px; }
+        
+        /* Look Cards */
+        .look-card { background: #111; border-radius: 20px; overflow: hidden; margin-bottom: 20px; border: 1px solid #222; }
+        .look-card.featured { border: 2px solid #D4FF00; }
+        .look-card.locked { border: 2px solid #0047FF; }
+        .best-match-banner { background: #D4FF00; color: #000; text-align: center; padding: 8px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; }
+        .locked-banner { background: #0047FF; color: #fff; text-align: center; padding: 8px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; }
+        .look-image-container { position: relative; }
+        .look-preview { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; }
+        .look-preview-placeholder { width: 100%; aspect-ratio: 3/4; background: #1a1a1a; display: flex; align-items: center; justify-content: center; color: #444; font-size: 12px; }
+        .look-badge { position: absolute; top: 12px; right: 12px; background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); padding: 8px 14px; border-radius: 20px; }
+        .look-badge-pct { font-size: 18px; font-weight: 800; }
+        .look-badge-label { font-size: 9px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .look-info { padding: 20px; }
+        .look-tier { display: inline-block; padding: 4px 10px; border-radius: 4px; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+        .tier-clean { background: #00c9a7; color: #000; }
+        .tier-trending { background: #D4FF00; color: #000; }
+        .tier-bold { background: #0047FF; color: #fff; }
+        
+        .look-name { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 4px; }
+        .look-vibe { font-size: 13px; color: #888; margin-bottom: 16px; }
+        
+        .look-meta { display: flex; flex-wrap: wrap; gap: 12px; font-size: 11px; color: #666; margin-bottom: 16px; }
+        .look-meta span { display: flex; align-items: center; gap: 4px; }
+        
+        .achievability { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; }
+        .achievability-ready { background: rgba(0,201,167,0.15); color: #00c9a7; }
+        .achievability-grow { background: rgba(212,255,0,0.15); color: #D4FF00; }
+        .achievability-dream { background: rgba(0,71,255,0.15); color: #0047FF; }
+        .achievability-tip { font-size: 11px; color: #666; margin-top: 8px; }
+        
+        /* Cut Card */
+        .cut-card-toggle { width: 100%; padding: 12px; background: #1a1a1a; border: none; border-radius: 8px; color: #888; font-size: 11px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: space-between; margin-top: 16px; text-transform: uppercase; letter-spacing: 1px; }
+        .cut-card-toggle:hover { background: #222; color: #fff; }
+        .cut-card-toggle .arrow { transition: transform 0.2s; }
+        .cut-card-toggle.open .arrow { transform: rotate(180deg); }
+        
+        .cut-card { display: none; background: #0a0a0a; border-radius: 12px; padding: 16px; margin-top: 12px; }
+        .cut-card.open { display: block; animation: slideDown 0.2s ease; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .cut-card-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid #1a1a1a; }
+        .cut-card-row:last-child { border-bottom: none; }
+        .cut-card-label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 1px; flex-shrink: 0; }
+        .cut-card-value { font-size: 12px; color: #fff; text-align: right; max-width: 60%; line-height: 1.4; }
+        
+        /* Action Buttons */
+        .look-actions { display: flex; gap: 8px; margin-top: 16px; }
+        .look-actions .btn { flex: 1; padding: 14px 12px; font-size: 11px; }
+        .btn-lock { background: #0047FF; color: #fff; }
+        .btn-lock:hover { background: #0038cc; }
+        .btn-share { background: #1a1a1a; color: #fff; border: 1px solid #333; }
+        
+        /* Locked State */
+        .locked-overlay { position: absolute; inset: 0; background: rgba(0,71,255,0.1); display: flex; align-items: center; justify-content: center; }
+        .locked-stamp { background: #0047FF; color: #fff; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; transform: rotate(-5deg); }
+        
+        /* Modal */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: #111; border-radius: 20px; max-width: 400px; width: 100%; max-height: 90vh; overflow-y: auto; }
+        .modal-header { padding: 20px; border-bottom: 1px solid #222; display: flex; align-items: center; justify-content: space-between; }
+        .modal-title { font-size: 16px; font-weight: 700; }
+        .modal-close { background: none; border: none; color: #666; font-size: 24px; cursor: pointer; padding: 0; line-height: 1; }
+        .modal-body { padding: 20px; }
+        
+        /* Share Modal */
+        .share-options { display: flex; flex-direction: column; gap: 12px; }
+        .share-btn { display: flex; align-items: center; gap: 12px; padding: 16px; background: #1a1a1a; border: none; border-radius: 12px; color: #fff; font-size: 14px; font-weight: 500; cursor: pointer; text-align: left; }
+        .share-btn:hover { background: #222; }
+        .share-icon { font-size: 20px; }
+        
+        /* Footer */
+        .footer { text-align: center; padding: 32px 0; }
+        .footer-text { font-size: 10px; color: #444; text-transform: uppercase; letter-spacing: 2px; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <div class="logo">STYLELOCK</div>
-            <div class="tagline">Prototype Your Next Self</div>
+            <div class="tagline">Lock Your Next Self</div>
         </div>
         
+        <!-- Vibe Selector -->
+        <div class="vibe-section" id="vibeSection">
+            <div class="vibe-label">Choose Your Vibe</div>
+            <div class="vibe-selector">
+                <button class="vibe-btn safe" data-vibe="safe" onclick="selectVibe('safe')">🎯 Safe</button>
+                <button class="vibe-btn balanced active" data-vibe="balanced" onclick="selectVibe('balanced')">⚡ Balanced</button>
+                <button class="vibe-btn bold" data-vibe="bold" onclick="selectVibe('bold')">🔥 Bold</button>
+            </div>
+        </div>
+        
+        <!-- Camera Section -->
         <div class="camera-section" id="cameraSection">
             <div class="camera-icon">📸</div>
             <div class="camera-title">Upload Your Photo</div>
-            <div class="camera-desc">Front-facing, good lighting, face clearly visible</div>
-            <div style="display: flex; flex-direction: column; gap: 12px; width: 100%;">
-                <label class="btn btn-primary" style="width: 100%;">
-                    📷 TAKE SELFIE
+            <div class="camera-desc">Front-facing, good lighting<br>Face and current hair clearly visible</div>
+            <div class="upload-btns">
+                <label class="btn btn-primary">
+                    📷 Take Selfie
                     <input type="file" accept="image/*" capture="user" id="cameraInput">
                 </label>
-                <label class="btn btn-secondary" style="width: 100%; background: #333; border: 1px solid #555;">
-                    🖼️ CHOOSE FROM GALLERY
+                <label class="btn btn-secondary">
+                    🖼️ Choose from Gallery
                     <input type="file" accept="image/*" id="galleryInput">
                 </label>
             </div>
         </div>
         
+        <!-- Preview Section -->
         <div class="preview-section" id="previewSection">
-            <img id="previewImage" class="preview-image" src="" alt="Preview">
+            <div class="preview-container">
+                <img id="previewImage" class="preview-image" src="" alt="Your photo">
+                <div class="preview-badge">Self ID Ready</div>
+            </div>
             <div class="preview-actions">
-                <button class="btn btn-secondary" onclick="reset()">Retake</button>
-                <button class="btn btn-generate" onclick="generate()">✨ Generate 3 Looks</button>
+                <button class="btn btn-secondary" onclick="reset()">← Retake</button>
+                <button class="btn btn-generate" onclick="generate()">Generate 3 Futures →</button>
             </div>
         </div>
         
+        <!-- Loading Section -->
         <div class="loading-section" id="loadingSection">
-            <div class="spinner"></div>
-            <div class="loading-text"><span class="loading-step" id="loadingStep">Analyzing...</span></div>
+            <div class="loading-visual">
+                <div class="loading-ring"></div>
+                <div class="loading-ring"></div>
+                <div class="loading-ring"></div>
+            </div>
+            <div class="loading-text">
+                Reading Your Face
+                <span class="loading-step" id="loadingStep">Analyzing features...</span>
+            </div>
         </div>
         
+        <!-- Error Section -->
         <div class="error-section" id="errorSection">
-            <div class="error-icon">😕</div>
+            <div class="error-icon">⚠️</div>
             <div class="error-text" id="errorText">Something went wrong</div>
             <button class="btn btn-primary" onclick="reset()">Try Again</button>
         </div>
         
+        <!-- Results Section -->
         <div class="results-section" id="resultsSection">
-            <div class="results-title">YOUR 3 FUTURES</div>
-            <div class="analysis-summary" id="analysisSummary">
-                <div class="analysis-title">AI Analysis</div>
-                <div class="analysis-tags" id="analysisTags"></div>
+            <div class="results-header">
+                <div class="results-title">Your Transformation</div>
+                <div class="results-headline">3 Futures</div>
             </div>
+            
+            <div class="analysis-card" id="analysisCard">
+                <div class="analysis-title">AI Face Reading</div>
+                <div class="analysis-grid" id="analysisGrid"></div>
+            </div>
+            
             <div id="lookCards"></div>
-            <button class="btn btn-secondary" style="width:100%;margin-top:20px" onclick="reset()">Start Over</button>
+            
+            <button class="btn btn-secondary" style="width:100%;margin-top:20px" onclick="reset()">← Start Over</button>
+        </div>
+        
+        <div class="footer">
+            <div class="footer-text">StyleLock AI • Beta</div>
+        </div>
+    </div>
+    
+    <!-- Share Modal -->
+    <div class="modal-overlay" id="shareModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">Share This Look</div>
+                <button class="modal-close" onclick="closeShareModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="share-options">
+                    <button class="share-btn" onclick="shareToWhatsApp()">
+                        <span class="share-icon">💬</span>
+                        Share to WhatsApp
+                    </button>
+                    <button class="share-btn" onclick="downloadImage()">
+                        <span class="share-icon">💾</span>
+                        Save to Phone
+                    </button>
+                    <button class="share-btn" onclick="copyLink()">
+                        <span class="share-icon">🔗</span>
+                        Copy Link
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
     
     <script>
         let imageBase64 = '';
+        let selectedVibe = 'balanced';
+        let currentResults = null;
+        let lockedLookId = null;
+        let shareImageUrl = null;
+        
+        function selectVibe(vibe) {
+            selectedVibe = vibe;
+            document.querySelectorAll('.vibe-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.vibe === vibe);
+            });
+        }
         
         function handleImageSelect(e) {
             const file = e.target.files[0];
@@ -945,6 +1122,7 @@ async def serve_app():
                 imageBase64 = ev.target.result.split(',')[1];
                 document.getElementById('previewImage').src = ev.target.result;
                 document.getElementById('cameraSection').style.display = 'none';
+                document.getElementById('vibeSection').style.display = 'none';
                 document.getElementById('previewSection').style.display = 'block';
             };
             reader.readAsDataURL(file);
@@ -955,8 +1133,12 @@ async def serve_app():
         
         function reset() {
             imageBase64 = '';
+            lockedLookId = null;
+            currentResults = null;
             document.getElementById('cameraInput').value = '';
+            document.getElementById('galleryInput').value = '';
             document.getElementById('cameraSection').style.display = 'block';
+            document.getElementById('vibeSection').style.display = 'block';
             document.getElementById('previewSection').style.display = 'none';
             document.getElementById('loadingSection').style.display = 'none';
             document.getElementById('errorSection').style.display = 'none';
@@ -967,35 +1149,46 @@ async def serve_app():
             document.getElementById('previewSection').style.display = 'none';
             document.getElementById('loadingSection').style.display = 'block';
             
-            const steps = ['Analyzing face & hair...', 'Scoring 16 hairstyles...', 'Generating AI previews...', 'Almost there...'];
+            const steps = [
+                'Analyzing face shape...',
+                'Reading hair texture...',
+                'Calculating matches...',
+                'Generating previews...',
+                'Almost there...'
+            ];
             let i = 0;
-            const interval = setInterval(() => { i = (i+1) % steps.length; document.getElementById('loadingStep').textContent = steps[i]; }, 3000);
+            const interval = setInterval(() => {
+                i = (i + 1) % steps.length;
+                document.getElementById('loadingStep').textContent = steps[i];
+            }, 2500);
             
             try {
                 const resp = await fetch('/api/consult', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({image_base64: imageBase64, vibe_preference: 'balanced'})
+                    body: JSON.stringify({
+                        image_base64: imageBase64,
+                        vibe_preference: selectedVibe
+                    })
                 });
+                
                 clearInterval(interval);
                 
-                const responseText = await resp.text();
+                const text = await resp.text();
                 let data;
                 try {
-                    data = JSON.parse(responseText);
-                } catch (parseErr) {
-                    throw new Error('Invalid response from server');
+                    data = JSON.parse(text);
+                } catch(e) {
+                    throw new Error('Invalid server response');
                 }
                 
-                if (!resp.ok) {
-                    throw new Error(data.detail || 'Request failed');
+                if (!resp.ok || !data.success) {
+                    throw new Error(data.detail || data.error || 'Generation failed');
                 }
                 
-                if (!data.success) {
-                    throw new Error(data.error || 'Generation failed');
-                }
-                
+                currentResults = data;
                 showResults(data);
+                
             } catch(e) {
                 clearInterval(interval);
                 document.getElementById('loadingSection').style.display = 'none';
@@ -1009,85 +1202,176 @@ async def serve_app():
             document.getElementById('resultsSection').style.display = 'block';
             
             const a = data.analysis || {};
-            const userLength = a.estimated_top_length_cm || 5;
-            
-            document.getElementById('analysisTags').innerHTML = `
-                <span class="analysis-tag">${a.face_shape || 'unknown'} face</span>
-                <span class="analysis-tag">${a.hair_texture || 'unknown'} hair</span>
-                <span class="analysis-tag">${a.hair_density || 'medium'} density</span>
-                <span class="analysis-tag">~${userLength}cm length</span>
+            document.getElementById('analysisGrid').innerHTML = `
+                <div class="analysis-item">
+                    <div class="analysis-label">Face Shape</div>
+                    <div class="analysis-value">${a.face_shape || 'Unknown'}</div>
+                </div>
+                <div class="analysis-item">
+                    <div class="analysis-label">Hair Texture</div>
+                    <div class="analysis-value">${a.hair_texture || 'Unknown'}</div>
+                </div>
+                <div class="analysis-item">
+                    <div class="analysis-label">Density</div>
+                    <div class="analysis-value">${a.hair_density || 'Medium'}</div>
+                </div>
+                <div class="analysis-item">
+                    <div class="analysis-label">Current Length</div>
+                    <div class="analysis-value">~${a.estimated_top_length_cm || '?'} cm</div>
+                </div>
             `;
             
-            // Find most achievable look (ready first, then shortest grow time)
+            // Find most achievable
             const recs = data.recommendations || [];
-            let mostAchievableIdx = 0;
+            let bestIdx = 0;
             let bestScore = -999;
             recs.forEach((look, idx) => {
-                let score = 0;
-                if (look.achievability === 'ready') score = 100;
-                else if (look.achievability === 'grow') score = 50 - (look.growth_weeks || 0);
-                else score = 0;
-                if (score > bestScore) {
-                    bestScore = score;
-                    mostAchievableIdx = idx;
-                }
+                let score = look.achievability === 'ready' ? 100 : 
+                            look.achievability === 'grow' ? (50 - (look.growth_weeks || 0)) : 0;
+                if (score > bestScore) { bestScore = score; bestIdx = idx; }
             });
             
             let html = '';
             recs.forEach((look, idx) => {
+                const isBest = idx === bestIdx;
+                const isLocked = look.id === lockedLookId;
                 const tierClass = (look.tier || 'trending').toLowerCase();
                 const achClass = look.achievability || 'ready';
-                const isReady = achClass === 'ready';
-                const isMostAchievable = idx === mostAchievableIdx;
                 
                 let achText, achTip;
-                if (isReady) {
-                    achText = '🟢 Ready Now';
-                    achTip = 'Your current hair length works for this style!';
+                if (achClass === 'ready') {
+                    achText = '✓ Ready Now';
+                    achTip = 'Your hair length works for this style';
                 } else if (achClass === 'grow') {
-                    const weeks = look.growth_weeks || 4;
-                    achText = `🟡 ~${weeks} weeks`;
-                    achTip = `Need ~${weeks} weeks of growth (${Math.round(weeks * 0.3)}cm more)`;
+                    achText = `↑ ${look.growth_weeks || '?'} weeks`;
+                    achTip = `Grow ~${Math.round((look.growth_weeks || 4) * 0.3)} cm more`;
                 } else {
-                    achText = '🔴 Dream Look';
-                    achTip = 'Significant growth needed - save this for later!';
+                    achText = '★ Dream Look';
+                    achTip = 'Save this for later';
                 }
                 
-                const preview = look.preview_url ? `<img src="${look.preview_url}" class="look-preview" onerror="this.style.display='none'">` : `<div class="look-preview-placeholder">Preview generating...</div>`;
-                const cutCard = look.cut_card || {};
+                const cardClass = isLocked ? 'look-card locked' : (isBest ? 'look-card featured' : 'look-card');
+                const banner = isLocked ? '<div class="locked-banner">🔒 Locked</div>' : 
+                               (isBest ? '<div class="best-match-banner">⭐ Best Match for Your Hair</div>' : '');
                 
-                const mostAchievableBadge = isMostAchievable ? `<div class="most-achievable-badge">⭐ BEST MATCH FOR YOUR HAIR</div>` : '';
-                const cardClass = isMostAchievable ? 'look-card featured' : 'look-card';
+                const preview = look.preview_url ? 
+                    `<img src="${look.preview_url}" class="look-preview" alt="${look.name}">` : 
+                    `<div class="look-preview-placeholder">Preview generating...</div>`;
+                
+                const cutCard = look.cut_card || {};
+                const lookId = look.id || idx;
                 
                 html += `
-                <div class="${cardClass}">
-                    ${mostAchievableBadge}
-                    ${preview}
-                    <div class="match-score"><em>${look.match_percentage || '?'}%</em> match</div>
+                <div class="${cardClass}" id="card-${lookId}">
+                    ${banner}
+                    <div class="look-image-container">
+                        ${preview}
+                        ${isLocked ? '<div class="locked-overlay"><div class="locked-stamp">LOCKED</div></div>' : ''}
+                        <div class="look-badge">
+                            <div class="look-badge-pct">${look.match_percentage || '?'}%</div>
+                            <div class="look-badge-label">match</div>
+                        </div>
+                    </div>
                     <div class="look-info">
-                        <span class="look-tier tier-${tierClass}">${look.tier || 'TRENDING'}</span>
+                        <span class="look-tier tier-${tierClass}">${look.tier || 'Trending'}</span>
                         <div class="look-name">${look.name || 'Hairstyle'}</div>
                         <div class="look-vibe">${look.vibe || ''}</div>
                         <div class="look-meta">
                             <span>🔧 ${look.maintenance || 'Medium'}</span>
-                            <span>⏱️ ${look.daily_time || '3-5 min'}</span>
-                            ${look.thinning_friendly ? '<span>✓ Thinning-friendly</span>' : ''}
+                            <span>⏱ ${look.daily_time || '3-5 min'}</span>
+                            ${look.thinning_friendly ? '<span>✓ Thin-friendly</span>' : ''}
                         </div>
-                        <div class="achievability-section">
-                            <span class="achievability achievability-${achClass}">${achText}</span>
-                            <div class="achievability-tip">${achTip}</div>
-                        </div>
-                        <div class="cut-card">
+                        <div class="achievability achievability-${achClass}">${achText}</div>
+                        <div class="achievability-tip">${achTip}</div>
+                        
+                        <button class="cut-card-toggle" onclick="toggleCutCard('${lookId}')">
+                            <span>View Cut Card</span>
+                            <span class="arrow">▼</span>
+                        </button>
+                        <div class="cut-card" id="cutcard-${lookId}">
                             <div class="cut-card-row"><span class="cut-card-label">Fade</span><span class="cut-card-value">${cutCard.fade || '-'}</span></div>
                             <div class="cut-card-row"><span class="cut-card-label">Top Length</span><span class="cut-card-value">${cutCard.top_length || '-'}</span></div>
+                            <div class="cut-card-row"><span class="cut-card-label">Texture</span><span class="cut-card-value">${cutCard.texture_method || '-'}</span></div>
+                            <div class="cut-card-row"><span class="cut-card-label">Fringe</span><span class="cut-card-value">${cutCard.fringe || '-'}</span></div>
                             <div class="cut-card-row"><span class="cut-card-label">Styling</span><span class="cut-card-value">${cutCard.styling || '-'}</span></div>
                             <div class="cut-card-row"><span class="cut-card-label">Products</span><span class="cut-card-value">${cutCard.products || '-'}</span></div>
+                            <div class="cut-card-row"><span class="cut-card-label">Beard</span><span class="cut-card-value">${cutCard.beard_pairing || '-'}</span></div>
+                            <div class="cut-card-row"><span class="cut-card-label">Avoid</span><span class="cut-card-value">${cutCard.avoid || '-'}</span></div>
+                        </div>
+                        
+                        <div class="look-actions">
+                            ${isLocked ? 
+                                `<button class="btn btn-share" onclick="openShare('${look.preview_url || ''}', '${look.name}')">📤 Share</button>` :
+                                `<button class="btn btn-lock" onclick="lockLook('${lookId}')">🔒 Lock This Look</button>
+                                 <button class="btn btn-share" onclick="openShare('${look.preview_url || ''}', '${look.name}')">📤</button>`
+                            }
                         </div>
                     </div>
                 </div>`;
             });
+            
             document.getElementById('lookCards').innerHTML = html;
         }
+        
+        function toggleCutCard(id) {
+            const card = document.getElementById('cutcard-' + id);
+            const toggle = card.previousElementSibling;
+            card.classList.toggle('open');
+            toggle.classList.toggle('open');
+        }
+        
+        function lockLook(id) {
+            lockedLookId = id;
+            if (currentResults) {
+                showResults(currentResults);
+            }
+            // Scroll to locked card
+            setTimeout(() => {
+                const card = document.getElementById('card-' + id);
+                if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+        }
+        
+        function openShare(imageUrl, lookName) {
+            shareImageUrl = imageUrl;
+            document.getElementById('shareModal').classList.add('active');
+        }
+        
+        function closeShareModal() {
+            document.getElementById('shareModal').classList.remove('active');
+        }
+        
+        function shareToWhatsApp() {
+            const text = encodeURIComponent('Check out my new hairstyle from StyleLock! 💇‍♂️');
+            const url = shareImageUrl ? encodeURIComponent(shareImageUrl) : '';
+            window.open(`https://wa.me/?text=${text}%20${url}`, '_blank');
+            closeShareModal();
+        }
+        
+        function downloadImage() {
+            if (shareImageUrl) {
+                const a = document.createElement('a');
+                a.href = shareImageUrl;
+                a.download = 'stylelock-look.jpg';
+                a.target = '_blank';
+                a.click();
+            }
+            closeShareModal();
+        }
+        
+        function copyLink() {
+            if (shareImageUrl) {
+                navigator.clipboard.writeText(shareImageUrl).then(() => {
+                    alert('Link copied!');
+                });
+            }
+            closeShareModal();
+        }
+        
+        // Close modal on outside click
+        document.getElementById('shareModal').addEventListener('click', function(e) {
+            if (e.target === this) closeShareModal();
+        });
     </script>
 </body>
 </html>
@@ -1097,8 +1381,10 @@ async def serve_app():
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
-    print(f"🚀 StyleLock AI v2.1 starting on port {port}")
+    print(f"🚀 StyleLock AI v3.0 starting on port {port}")
+    print(f"   Features: Vibe Selector, Lock Look, Share, Cut Card Detail")
     print(f"   {len(HERO_LOOKS)} Hero Looks loaded")
+    print(f"   Match % calibrated to 70-92% range")
     print(f"   Anthropic: {'✅' if ANTHROPIC_API_KEY else '❌'}")
     print(f"   VModel: {'✅' if VMODEL_API_KEY else '❌'}")
     uvicorn.run(app, host="0.0.0.0", port=port)
