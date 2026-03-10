@@ -645,11 +645,14 @@ async def generate_hairstyle_vmodel(target_url: str, look: dict) -> Optional[str
         try:
             resp = await client.post(VMODEL_API_URL, headers=headers, json=payload)
             
+            print(f"    [{look_name}] Response status: {resp.status_code}")
+            
             if resp.status_code != 200:
-                print(f"    [{look_name}] ❌ API error: {resp.status_code}")
+                print(f"    [{look_name}] ❌ API error: {resp.text[:200]}")
                 return None
             
             data = resp.json()
+            print(f"    [{look_name}] Response keys: {list(data.keys())}")
             
             # Check immediate result
             if data.get("status") == "succeeded" and data.get("output"):
@@ -657,11 +660,14 @@ async def generate_hairstyle_vmodel(target_url: str, look: dict) -> Optional[str
                 if isinstance(output, list) and output:
                     print(f"    [{look_name}] ✅ Instant result!")
                     return output[0]
+                elif isinstance(output, str):
+                    print(f"    [{look_name}] ✅ Instant result (string)!")
+                    return output
             
-            # Poll for result
-            task_id = data.get("task_id") or data.get("id")
+            # Poll for result - check multiple possible field names
+            task_id = data.get("task_id") or data.get("id") or data.get("taskId") or data.get("orderId")
             if not task_id:
-                print(f"    [{look_name}] ❌ No task_id")
+                print(f"    [{look_name}] ❌ No task_id. Full response: {json.dumps(data)[:300]}")
                 return None
             
             print(f"    [{look_name}] Polling task {task_id}...")
