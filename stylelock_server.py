@@ -1,12 +1,11 @@
 """
-StyleLock AI - Complete Backend Server v3.0
+StyleLock AI - Backend Server v4.0
+DESIGN EDITION - Editorial aesthetic, cult energy
 Features:
-- Share/Save functionality
-- Lock This Look flow
-- Cut Card detail view (tap to expand)
-- Vibe preference selector (Safe / Balanced / Bold)
-- Calibrated match percentages (70-92% realistic range)
-- Performance optimizations
+- Design-accurate frontend matching Visual North Star
+- Oversized typography, grainy textures, duotone treatment
+- Lock This Look, Share, Cut Card detail
+- Calibrated match percentages (70-92%)
 """
 
 import os
@@ -426,7 +425,7 @@ HERO_LOOKS = [
 # FASTAPI APP
 # ============================================================
 
-app = FastAPI(title="StyleLock AI", version="3.1")
+app = FastAPI(title="StyleLock AI", version="4.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -438,7 +437,7 @@ app.add_middleware(
 
 class ConsultRequest(BaseModel):
     image_base64: str
-    vibe_preference: str = "balanced"  # safe, balanced, bold
+    vibe_preference: str = "balanced"
 
 # ============================================================
 # HELPER FUNCTIONS
@@ -555,18 +554,13 @@ def score_and_recommend(analysis: dict, vibe: str) -> list:
     scored_looks = []
     
     for look in HERO_LOOKS:
-        # Face shape score (0-40)
         face_score = look["face_shapes"].get(face, 3) * 8
-        
-        # Texture score (0-35)
         texture_score = look["textures"].get(texture, 3) * 7
         
-        # Thinning bonus (0-10)
         thinning_bonus = 0
         if "thinning" in hairline or "receding" in hairline:
             thinning_bonus = 10 if look["thinning_friendly"] else -5
         
-        # Vibe alignment (0-15)
         vibe_score = 10
         if vibe == "safe" and look["tier"] == "CLEAN":
             vibe_score = 15
@@ -577,25 +571,20 @@ def score_and_recommend(analysis: dict, vibe: str) -> list:
         
         raw_score = face_score + texture_score + thinning_bonus + vibe_score
         
-        # CALIBRATED MATCH PERCENTAGE: Map raw score to realistic 70-92% range
-        # Raw scores typically range from 50-100
-        # We want to output 70-92%
         min_raw, max_raw = 50, 100
         min_pct, max_pct = 70, 92
         calibrated_pct = min_pct + (raw_score - min_raw) * (max_pct - min_pct) / (max_raw - min_raw)
         calibrated_pct = max(min_pct, min(max_pct, int(calibrated_pct)))
         
-        # Achievability
         min_length = look["min_length_cm"]
         if length_cm >= min_length:
             achievability = "ready"
             growth_weeks = 0
         else:
             growth_needed = min_length - length_cm
-            growth_weeks = int(growth_needed / 0.3)  # ~0.3cm per week
+            growth_weeks = int(growth_needed / 0.3)
             achievability = "grow" if growth_weeks <= 12 else "dream"
         
-        # Get reference image URL
         ref = HAIRSTYLE_REFERENCES.get(look["id"], {})
         
         scored_looks.append({
@@ -609,17 +598,10 @@ def score_and_recommend(analysis: dict, vibe: str) -> list:
     
     scored_looks.sort(key=lambda x: x["total_score"], reverse=True)
     
-    # Pick best from each tier based on vibe preference
     result = []
     tiers_found = set()
     
-    # Prioritize tiers based on vibe
-    if vibe == "safe":
-        tier_order = ["CLEAN", "TRENDING", "BOLD"]
-    elif vibe == "bold":
-        tier_order = ["BOLD", "TRENDING", "CLEAN"]
-    else:  # balanced
-        tier_order = ["TRENDING", "CLEAN", "BOLD"]
+    tier_order = ["TRENDING", "CLEAN", "BOLD"]
     
     for tier in tier_order:
         for look in scored_looks:
@@ -628,7 +610,6 @@ def score_and_recommend(analysis: dict, vibe: str) -> list:
                 result.append(look)
                 break
     
-    # Fill remaining slots
     while len(result) < 3:
         for look in scored_looks:
             if look not in result:
@@ -674,7 +655,6 @@ async def generate_hairstyle_vmodel(target_url: str, look: dict) -> Optional[str
             
             data = resp.json()
             
-            # Check immediate result
             if data.get("status") == "succeeded" and data.get("output"):
                 output = data["output"]
                 if isinstance(output, list) and output:
@@ -684,7 +664,6 @@ async def generate_hairstyle_vmodel(target_url: str, look: dict) -> Optional[str
                     print(f"    [{look_name}] ✅ Instant result (string)!")
                     return output
             
-            # Poll for result - task_id is inside 'result' object
             result_obj = data.get("result", {})
             task_id = result_obj.get("task_id") or data.get("task_id") or data.get("id")
             if not task_id:
@@ -704,12 +683,10 @@ async def generate_hairstyle_vmodel(target_url: str, look: dict) -> Optional[str
                 
                 poll_data = poll_resp.json()
                 
-                # Handle nested result structure
                 result_data = poll_data.get("result", poll_data)
                 status = result_data.get("status") or poll_data.get("status", "unknown")
                 
                 if status in ["succeeded", "completed", "success", "done"]:
-                    # Try multiple possible output locations
                     output = (
                         result_data.get("output") or 
                         result_data.get("output_url") or 
@@ -766,8 +743,9 @@ async def health():
     return {
         "status": "ok",
         "service": "StyleLock AI",
-        "version": "3.0",
-        "features": ["lock_look", "share", "cut_card_detail"],
+        "version": "4.0",
+        "edition": "DESIGN",
+        "features": ["editorial_ui", "lock_look", "share", "cut_card_detail"],
         "looks_count": len(HERO_LOOKS),
         "anthropic_key": bool(ANTHROPIC_API_KEY),
         "vmodel_key": bool(VMODEL_API_KEY)
@@ -778,7 +756,6 @@ async def health():
 async def debug():
     results = {"config": {"model": CLAUDE_MODEL, "looks": len(HERO_LOOKS)}, "tests": {}}
     
-    # Test Anthropic
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(
@@ -790,7 +767,6 @@ async def debug():
     except Exception as e:
         results["tests"]["anthropic"] = f"❌ {e}"
     
-    # Test VModel
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get("https://api.vmodel.ai/api/user/v1/me", headers={"Authorization": f"Bearer {VMODEL_API_KEY}"})
@@ -805,7 +781,6 @@ async def debug():
 async def consult(request: ConsultRequest):
     """Main consultation - full pipeline"""
     print("\n" + "="*60 + "\nNEW CONSULTATION\n" + "="*60)
-    print(f"Vibe preference: {request.vibe_preference}")
     
     try:
         analysis = await analyze_with_claude(request.image_base64)
@@ -827,254 +802,897 @@ async def consult(request: ConsultRequest):
 
 @app.get("/app", response_class=HTMLResponse)
 async def serve_app():
-    """Serve the frontend"""
-    return """
+    """Serve the design-accurate frontend"""
+    return '''
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>StyleLock — Lock Your Next Self</title>
+    <title>STYLELOCK — Future You</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Caveat:wght@500;700&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --black: #0A0A0A;
+            --white: #FFFFFF;
+            --volt: #D4FF00;
+            --blue: #0047FF;
+            --cream: #F5F0E6;
+            --gray: #666666;
+            --gray-dark: #1A1A1A;
+        }
+        
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: #0a0a0a; color: #fff; min-height: 100vh; overflow-x: hidden; }
-        .container { max-width: 420px; margin: 0 auto; padding: 16px; min-height: 100vh; }
         
-        /* Header */
-        .header { text-align: center; padding: 32px 0 24px; }
-        .logo { font-size: 32px; font-weight: 900; letter-spacing: -1px; background: linear-gradient(135deg, #fff 0%, #888 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .tagline { font-size: 11px; color: #666; margin-top: 6px; letter-spacing: 3px; text-transform: uppercase; }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: var(--black); 
+            color: var(--white); 
+            min-height: 100vh; 
+            overflow-x: hidden;
+            position: relative;
+        }
         
-        /* Camera Section */
-        .camera-section { background: #111; border: 2px dashed #333; border-radius: 20px; padding: 40px 20px; margin: 20px 0; text-align: center; }
-        .camera-icon { font-size: 48px; margin-bottom: 16px; filter: grayscale(1); }
-        .camera-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
-        .camera-desc { font-size: 12px; color: #666; margin-bottom: 24px; line-height: 1.5; }
-        .upload-btns { display: flex; flex-direction: column; gap: 12px; }
-        .btn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 16px 24px; border: none; border-radius: 12px; font-size: 13px; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; transition: all 0.2s; }
-        .btn-primary { background: #fff; color: #000; }
-        .btn-primary:hover { background: #eee; transform: scale(0.98); }
-        .btn-secondary { background: #1a1a1a; color: #fff; border: 1px solid #333; }
-        .btn-secondary:hover { background: #222; }
+        /* Noise texture overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+            opacity: 0.03;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        
+        .container { 
+            max-width: 100%; 
+            min-height: 100vh; 
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* ===== TYPOGRAPHY ===== */
+        .headline {
+            font-family: 'Anton', sans-serif;
+            text-transform: uppercase;
+            line-height: 0.85;
+            letter-spacing: -0.02em;
+        }
+        
+        .script {
+            font-family: 'Caveat', cursive;
+            font-weight: 500;
+        }
+        
+        .mono {
+            font-family: 'Space Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        
+        /* ===== HOME SCREEN ===== */
+        .screen { display: none; min-height: 100vh; }
+        .screen.active { display: flex; flex-direction: column; }
+        
+        .home-screen {
+            background: var(--black);
+            position: relative;
+            justify-content: space-between;
+            padding: 0;
+        }
+        
+        .home-bg-text {
+            position: absolute;
+            top: 0;
+            left: -5%;
+            right: -5%;
+            font-family: 'Anton', sans-serif;
+            font-size: 28vw;
+            line-height: 0.85;
+            color: var(--blue);
+            text-transform: uppercase;
+            pointer-events: none;
+            z-index: 1;
+            overflow: hidden;
+        }
+        
+        .home-content {
+            position: relative;
+            z-index: 2;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 20px;
+            padding-bottom: 40px;
+        }
+        
+        .home-labels {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            z-index: 3;
+        }
+        
+        .label-tag {
+            background: var(--black);
+            padding: 6px 10px;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            border: 1px solid #333;
+        }
+        
+        .home-main-text {
+            margin-bottom: 30px;
+        }
+        
+        .home-title {
+            font-size: clamp(60px, 18vw, 100px);
+            margin-bottom: 10px;
+        }
+        
+        .home-script {
+            font-size: clamp(28px, 8vw, 48px);
+            color: var(--volt);
+            transform: rotate(-3deg);
+            margin-left: 20px;
+            margin-top: -15px;
+        }
+        
+        .home-upload-area {
+            background: var(--gray-dark);
+            border: 2px dashed #333;
+            border-radius: 16px;
+            padding: 40px 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            filter: grayscale(1);
+        }
+        
+        .upload-text {
+            font-size: 12px;
+            color: var(--gray);
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        
+        .upload-btns {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 18px 24px;
+            border: none;
+            font-family: 'Anton', sans-serif;
+            font-size: 14px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: var(--white);
+            color: var(--black);
+        }
+        
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+        
+        .btn-outline {
+            background: transparent;
+            color: var(--white);
+            border: 2px solid #333;
+        }
+        
+        .btn-volt {
+            background: var(--volt);
+            color: var(--black);
+        }
+        
+        .btn-blue {
+            background: var(--blue);
+            color: var(--white);
+        }
+        
         input[type="file"] { display: none; }
         
-        /* Preview Section */
-        .preview-section { display: none; margin: 20px 0; }
-        .preview-container { position: relative; border-radius: 16px; overflow: hidden; background: #111; }
-        .preview-image { width: 100%; max-height: 400px; object-fit: contain; display: block; }
-        .preview-badge { position: absolute; top: 12px; left: 12px; background: #000; padding: 6px 12px; border-radius: 20px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
-        .preview-actions { display: flex; gap: 12px; margin-top: 16px; }
-        .preview-actions .btn { flex: 1; }
-        .btn-generate { background: #D4FF00; color: #000; }
-        .btn-generate:hover { background: #c4ef00; }
+        /* ===== PREVIEW SCREEN ===== */
+        .preview-screen {
+            background: var(--black);
+            position: relative;
+        }
         
-        /* Loading Section */
-        .loading-section { display: none; padding: 60px 20px; text-align: center; }
-        .loading-visual { position: relative; width: 120px; height: 120px; margin: 0 auto 32px; }
-        .loading-ring { position: absolute; inset: 0; border: 3px solid #222; border-top-color: #D4FF00; border-radius: 50%; animation: spin 1s linear infinite; }
-        .loading-ring:nth-child(2) { inset: 10px; border-top-color: #0047FF; animation-duration: 1.5s; animation-direction: reverse; }
-        .loading-ring:nth-child(3) { inset: 20px; border-top-color: #fff; animation-duration: 2s; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .loading-text { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 3px; }
-        .loading-step { display: block; color: #fff; font-size: 14px; font-weight: 600; margin-top: 8px; letter-spacing: 0; text-transform: none; }
+        .preview-image-wrap {
+            position: relative;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
         
-        /* Error Section */
-        .error-section { display: none; text-align: center; padding: 60px 20px; }
-        .error-icon { font-size: 48px; margin-bottom: 16px; }
-        .error-text { color: #ff6b6b; margin-bottom: 24px; font-size: 14px; }
+        .preview-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: grayscale(100%) contrast(1.1);
+        }
         
-        /* Results Section */
-        .results-section { display: none; }
-        .results-header { text-align: center; margin-bottom: 24px; }
-        .results-title { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 8px; }
-        .results-headline { font-size: 28px; font-weight: 900; letter-spacing: -1px; }
+        .preview-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            background: linear-gradient(transparent 40%, rgba(10,10,10,0.9) 100%);
+        }
         
-        /* Analysis Card */
-        .analysis-card { background: #111; border-radius: 16px; padding: 20px; margin-bottom: 24px; }
-        .analysis-title { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; }
-        .analysis-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-        .analysis-item { background: #1a1a1a; padding: 10px 12px; border-radius: 8px; }
-        .analysis-label { font-size: 9px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
-        .analysis-value { font-size: 13px; font-weight: 600; margin-top: 2px; }
+        .preview-top-labels {
+            display: flex;
+            justify-content: space-between;
+        }
         
-        /* Look Cards */
-        .look-card { background: #111; border-radius: 20px; overflow: hidden; margin-bottom: 20px; border: 1px solid #222; }
-        .look-card.featured { border: 2px solid #D4FF00; }
-        .look-card.locked { border: 2px solid #0047FF; }
-        .best-match-banner { background: #D4FF00; color: #000; text-align: center; padding: 8px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; }
-        .locked-banner { background: #0047FF; color: #fff; text-align: center; padding: 8px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; }
-        .look-image-container { position: relative; }
-        .look-preview { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; }
-        .look-preview-placeholder { width: 100%; aspect-ratio: 3/4; background: #1a1a1a; display: flex; align-items: center; justify-content: center; color: #444; font-size: 12px; }
-        .look-badge { position: absolute; top: 12px; right: 12px; background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); padding: 8px 14px; border-radius: 20px; }
-        .look-badge-pct { font-size: 18px; font-weight: 800; }
-        .look-badge-label { font-size: 9px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+        .preview-script {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-5deg);
+            font-size: clamp(36px, 12vw, 60px);
+            color: var(--volt);
+            text-shadow: 2px 2px 0 var(--black);
+            white-space: nowrap;
+        }
         
-        .look-info { padding: 20px; }
-        .look-tier { display: inline-block; padding: 4px 10px; border-radius: 4px; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
-        .tier-clean { background: #00c9a7; color: #000; }
-        .tier-trending { background: #D4FF00; color: #000; }
-        .tier-bold { background: #0047FF; color: #fff; }
+        .preview-bottom {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
         
-        .look-name { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 4px; }
-        .look-vibe { font-size: 13px; color: #888; margin-bottom: 16px; }
+        .preview-headline {
+            font-size: clamp(36px, 10vw, 56px);
+        }
         
-        .look-meta { display: flex; flex-wrap: wrap; gap: 12px; font-size: 11px; color: #666; margin-bottom: 16px; }
-        .look-meta span { display: flex; align-items: center; gap: 4px; }
+        /* ===== LOADING SCREEN ===== */
+        .loading-screen {
+            background: var(--black);
+            position: relative;
+            justify-content: center;
+            align-items: center;
+        }
         
-        .achievability { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; }
-        .achievability-ready { background: rgba(0,201,167,0.15); color: #00c9a7; }
-        .achievability-grow { background: rgba(212,255,0,0.15); color: #D4FF00; }
-        .achievability-dream { background: rgba(0,71,255,0.15); color: #0047FF; }
-        .achievability-tip { font-size: 11px; color: #666; margin-top: 8px; }
+        .loading-text-bg {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Anton', sans-serif;
+            font-size: clamp(80px, 30vw, 200px);
+            color: var(--gray-dark);
+            text-transform: uppercase;
+            white-space: nowrap;
+            z-index: 1;
+        }
         
-        /* Cut Card */
-        .cut-card-toggle { width: 100%; padding: 12px; background: #1a1a1a; border: none; border-radius: 8px; color: #888; font-size: 11px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: space-between; margin-top: 16px; text-transform: uppercase; letter-spacing: 1px; }
-        .cut-card-toggle:hover { background: #222; color: #fff; }
-        .cut-card-toggle .arrow { transition: transform 0.2s; }
-        .cut-card-toggle.open .arrow { transform: rotate(180deg); }
+        .loading-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            padding: 20px;
+        }
         
-        .cut-card { display: none; background: #0a0a0a; border-radius: 12px; padding: 16px; margin-top: 12px; }
-        .cut-card.open { display: block; animation: slideDown 0.2s ease; }
-        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-        .cut-card-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid #1a1a1a; }
+        .loading-main {
+            font-size: clamp(48px, 15vw, 80px);
+            margin-bottom: 20px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .loading-bars {
+            display: flex;
+            gap: 4px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+        
+        .loading-bar {
+            width: 40px;
+            height: 4px;
+            background: var(--volt);
+            animation: glitch 0.8s ease-in-out infinite;
+        }
+        
+        .loading-bar:nth-child(2) { animation-delay: 0.1s; width: 60px; }
+        .loading-bar:nth-child(3) { animation-delay: 0.2s; width: 30px; }
+        .loading-bar:nth-child(4) { animation-delay: 0.3s; width: 50px; }
+        .loading-bar:nth-child(5) { animation-delay: 0.4s; width: 35px; }
+        
+        @keyframes glitch {
+            0%, 100% { opacity: 1; transform: translateX(0); }
+            25% { opacity: 0.5; transform: translateX(-2px); }
+            75% { opacity: 0.8; transform: translateX(2px); }
+        }
+        
+        .loading-script {
+            font-size: 24px;
+            color: var(--volt);
+            transform: rotate(-3deg);
+        }
+        
+        .loading-step {
+            margin-top: 30px;
+            font-size: 11px;
+            color: var(--gray);
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+        }
+        
+        /* ===== RESULTS SCREEN ===== */
+        .results-screen {
+            background: var(--black);
+            padding: 0;
+        }
+        
+        .results-header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid #222;
+        }
+        
+        .results-title {
+            font-size: clamp(40px, 12vw, 64px);
+            margin-bottom: 5px;
+        }
+        
+        .results-script {
+            font-size: 20px;
+            color: var(--volt);
+            transform: rotate(-2deg);
+        }
+        
+        .results-cards {
+            padding: 20px;
+        }
+        
+        /* Look Card - Editorial Style */
+        .look-card {
+            position: relative;
+            margin-bottom: 30px;
+            background: var(--gray-dark);
+            overflow: hidden;
+        }
+        
+        .look-card.best-match {
+            border: 3px solid var(--volt);
+        }
+        
+        .look-card.locked {
+            border: 3px solid var(--blue);
+        }
+        
+        .best-match-strip {
+            background: var(--volt);
+            color: var(--black);
+            text-align: center;
+            padding: 8px;
+            font-family: 'Anton', sans-serif;
+            font-size: 12px;
+            letter-spacing: 0.15em;
+        }
+        
+        .locked-strip {
+            background: var(--blue);
+            color: var(--white);
+            text-align: center;
+            padding: 8px;
+            font-family: 'Anton', sans-serif;
+            font-size: 12px;
+            letter-spacing: 0.15em;
+        }
+        
+        .look-image-container {
+            position: relative;
+            aspect-ratio: 3/4;
+            overflow: hidden;
+        }
+        
+        .look-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .look-image-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(transparent 50%, rgba(10,10,10,0.95) 100%);
+        }
+        
+        .look-tier-badge {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            padding: 6px 12px;
+            font-family: 'Anton', sans-serif;
+            font-size: 11px;
+            letter-spacing: 0.1em;
+        }
+        
+        .tier-clean { background: var(--white); color: var(--black); }
+        .tier-trending { background: var(--volt); color: var(--black); }
+        .tier-bold { background: var(--blue); color: var(--white); }
+        
+        .look-match-stamp {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 70px;
+            height: 70px;
+            border: 3px solid var(--volt);
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(10,10,10,0.8);
+            transform: rotate(5deg);
+        }
+        
+        .stamp-pct {
+            font-family: 'Anton', sans-serif;
+            font-size: 22px;
+            line-height: 1;
+        }
+        
+        .stamp-label {
+            font-size: 8px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--gray);
+        }
+        
+        .look-info {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+        }
+        
+        .look-name {
+            font-family: 'Anton', sans-serif;
+            font-size: clamp(24px, 7vw, 32px);
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        
+        .look-vibe {
+            font-size: 12px;
+            color: var(--gray);
+            margin-bottom: 15px;
+        }
+        
+        .look-meta {
+            display: flex;
+            gap: 15px;
+            font-size: 10px;
+            color: var(--gray);
+            margin-bottom: 15px;
+        }
+        
+        .achievability {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .ach-ready { background: rgba(0, 200, 150, 0.2); color: #00c896; }
+        .ach-grow { background: rgba(212, 255, 0, 0.2); color: var(--volt); }
+        .ach-dream { background: rgba(0, 71, 255, 0.2); color: var(--blue); }
+        
+        /* Cut Card Expandable */
+        .cut-card-toggle {
+            width: 100%;
+            padding: 15px 20px;
+            background: var(--black);
+            border: none;
+            border-top: 1px solid #222;
+            color: var(--white);
+            font-family: 'Space Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+        
+        .cut-card-toggle .arrow {
+            transition: transform 0.2s;
+        }
+        
+        .cut-card-toggle.open .arrow {
+            transform: rotate(180deg);
+        }
+        
+        .cut-card {
+            display: none;
+            background: var(--black);
+            padding: 20px;
+            border-top: 1px solid #222;
+        }
+        
+        .cut-card.open {
+            display: block;
+            animation: slideDown 0.2s ease;
+        }
+        
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .cut-card-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #1a1a1a;
+            font-size: 11px;
+        }
+        
         .cut-card-row:last-child { border-bottom: none; }
-        .cut-card-label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 1px; flex-shrink: 0; }
-        .cut-card-value { font-size: 12px; color: #fff; text-align: right; max-width: 60%; line-height: 1.4; }
+        
+        .cut-card-label {
+            color: var(--gray);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-family: 'Space Mono', monospace;
+            font-size: 9px;
+        }
+        
+        .cut-card-value {
+            text-align: right;
+            max-width: 60%;
+            line-height: 1.4;
+        }
         
         /* Action Buttons */
-        .look-actions { display: flex; gap: 8px; margin-top: 16px; }
-        .look-actions .btn { flex: 1; padding: 14px 12px; font-size: 11px; }
-        .btn-lock { background: #0047FF; color: #fff; }
-        .btn-lock:hover { background: #0038cc; }
-        .btn-share { background: #1a1a1a; color: #fff; border: 1px solid #333; }
+        .look-actions {
+            display: flex;
+            gap: 10px;
+            padding: 15px 20px;
+            background: var(--gray-dark);
+        }
         
-        /* Locked State */
-        .locked-overlay { position: absolute; inset: 0; background: rgba(0,71,255,0.1); display: flex; align-items: center; justify-content: center; }
-        .locked-stamp { background: #0047FF; color: #fff; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; transform: rotate(-5deg); }
+        .look-actions .btn {
+            flex: 1;
+            padding: 14px;
+            font-size: 11px;
+        }
         
-        /* Modal */
-        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
-        .modal-overlay.active { display: flex; }
-        .modal { background: #111; border-radius: 20px; max-width: 400px; width: 100%; max-height: 90vh; overflow-y: auto; }
-        .modal-header { padding: 20px; border-bottom: 1px solid #222; display: flex; align-items: center; justify-content: space-between; }
-        .modal-title { font-size: 16px; font-weight: 700; }
-        .modal-close { background: none; border: none; color: #666; font-size: 24px; cursor: pointer; padding: 0; line-height: 1; }
-        .modal-body { padding: 20px; }
+        .locked-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 71, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        
+        .locked-stamp {
+            background: var(--blue);
+            padding: 15px 30px;
+            font-family: 'Anton', sans-serif;
+            font-size: 20px;
+            letter-spacing: 0.2em;
+            transform: rotate(-10deg);
+            border: 3px solid var(--white);
+        }
+        
+        /* Analysis Card */
+        .analysis-card {
+            background: var(--gray-dark);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .analysis-title {
+            font-family: 'Space Mono', monospace;
+            font-size: 9px;
+            color: var(--gray);
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+        }
+        
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        
+        .analysis-item {
+            background: var(--black);
+            padding: 12px;
+        }
+        
+        .analysis-label {
+            font-size: 9px;
+            color: var(--gray);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 4px;
+        }
+        
+        .analysis-value {
+            font-family: 'Anton', sans-serif;
+            font-size: 16px;
+            text-transform: uppercase;
+        }
         
         /* Share Modal */
-        .share-options { display: flex; flex-direction: column; gap: 12px; }
-        .share-btn { display: flex; align-items: center; gap: 12px; padding: 16px; background: #1a1a1a; border: none; border-radius: 12px; color: #fff; font-size: 14px; font-weight: 500; cursor: pointer; text-align: left; }
-        .share-btn:hover { background: #222; }
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.95);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .modal-overlay.active { display: flex; }
+        
+        .modal {
+            background: var(--gray-dark);
+            width: 100%;
+            max-width: 360px;
+        }
+        
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-title {
+            font-family: 'Anton', sans-serif;
+            font-size: 18px;
+            letter-spacing: 0.05em;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--gray);
+            font-size: 28px;
+            cursor: pointer;
+            line-height: 1;
+        }
+        
+        .modal-body { padding: 20px; }
+        
+        .share-btn {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 18px;
+            background: var(--black);
+            border: none;
+            color: var(--white);
+            font-size: 14px;
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: background 0.2s;
+        }
+        
+        .share-btn:hover { background: #111; }
+        .share-btn:last-child { margin-bottom: 0; }
+        
         .share-icon { font-size: 20px; }
         
+        /* Error Screen */
+        .error-screen {
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .error-icon { font-size: 64px; margin-bottom: 20px; }
+        .error-text { color: #ff6b6b; margin-bottom: 30px; }
+        
         /* Footer */
-        .footer { text-align: center; padding: 32px 0; }
-        .footer-text { font-size: 10px; color: #444; text-transform: uppercase; letter-spacing: 2px; }
+        .footer {
+            padding: 30px 20px;
+            text-align: center;
+            border-top: 1px solid #222;
+        }
+        
+        .footer-text {
+            font-family: 'Space Mono', monospace;
+            font-size: 9px;
+            color: #333;
+            letter-spacing: 0.2em;
+        }
+        
+        /* Back button */
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: var(--black);
+            border: 1px solid #333;
+            color: var(--white);
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <div class="logo">STYLELOCK</div>
-            <div class="tagline">Lock Your Next Self</div>
-        </div>
         
-        <!-- Camera Section -->
-        <div class="camera-section" id="cameraSection">
-            <div class="camera-icon">📸</div>
-            <div class="camera-title">Upload Your Photo</div>
-            <div class="camera-desc">Front-facing, good lighting<br>Face and current hair clearly visible</div>
-            <div class="upload-btns">
-                <label class="btn btn-primary">
-                    📷 Take Selfie
-                    <input type="file" accept="image/*" capture="user" id="cameraInput">
-                </label>
-                <label class="btn btn-secondary">
-                    🖼️ Choose from Gallery
-                    <input type="file" accept="image/*" id="galleryInput">
-                </label>
+        <!-- ===== HOME SCREEN ===== -->
+        <div class="screen home-screen active" id="homeScreen">
+            <div class="home-bg-text">
+                STYLE<br>LOCK
             </div>
-        </div>
-        
-        <!-- Preview Section -->
-        <div class="preview-section" id="previewSection">
-            <div class="preview-container">
-                <img id="previewImage" class="preview-image" src="" alt="Your photo">
-                <div class="preview-badge">Self ID Ready</div>
+            
+            <div class="home-labels">
+                <span class="label-tag">IDENTITY</span>
+                <span class="label-tag">BETA 1.0</span>
             </div>
-            <div class="preview-actions">
-                <button class="btn btn-secondary" onclick="reset()">← Retake</button>
-                <button class="btn btn-generate" onclick="generate()">Generate 3 Futures →</button>
-            </div>
-        </div>
-        
-        <!-- Loading Section -->
-        <div class="loading-section" id="loadingSection">
-            <div class="loading-visual">
-                <div class="loading-ring"></div>
-                <div class="loading-ring"></div>
-                <div class="loading-ring"></div>
-            </div>
-            <div class="loading-text">
-                Reading Your Face
-                <span class="loading-step" id="loadingStep">Analyzing features...</span>
+            
+            <div class="home-content">
+                <div class="home-main-text">
+                    <h1 class="headline home-title">REBIRTH</h1>
+                    <p class="script home-script">future me</p>
+                </div>
+                
+                <div class="home-upload-area">
+                    <div class="upload-icon">📸</div>
+                    <p class="upload-text">Front-facing photo<br>Good lighting • Face visible</p>
+                    <div class="upload-btns">
+                        <label class="btn btn-primary">
+                            TAKE SELFIE
+                            <input type="file" accept="image/*" capture="user" id="cameraInput">
+                        </label>
+                        <label class="btn btn-outline">
+                            CHOOSE PHOTO
+                            <input type="file" accept="image/*" id="galleryInput">
+                        </label>
+                    </div>
+                </div>
             </div>
         </div>
         
-        <!-- Error Section -->
-        <div class="error-section" id="errorSection">
+        <!-- ===== PREVIEW SCREEN ===== -->
+        <div class="screen preview-screen" id="previewScreen">
+            <div class="preview-image-wrap">
+                <img id="previewImage" class="preview-image" src="" alt="">
+                <div class="preview-overlay">
+                    <div class="preview-top-labels">
+                        <span class="label-tag">DRAFT 01</span>
+                        <span class="label-tag">SELF ID</span>
+                    </div>
+                    <p class="script preview-script">this is you</p>
+                    <div class="preview-bottom">
+                        <h2 class="headline preview-headline">ANALYZE<br>THIS FACE</h2>
+                        <button class="btn btn-volt" onclick="generate()">BEGIN TRANSFORMATION →</button>
+                        <button class="btn btn-outline" onclick="reset()">← RETAKE</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ===== LOADING SCREEN ===== -->
+        <div class="screen loading-screen" id="loadingScreen">
+            <div class="loading-text-bg" id="loadingBgText">READING</div>
+            <div class="loading-content">
+                <h1 class="headline loading-main" id="loadingMain">READING</h1>
+                <div class="loading-bars">
+                    <div class="loading-bar"></div>
+                    <div class="loading-bar"></div>
+                    <div class="loading-bar"></div>
+                    <div class="loading-bar"></div>
+                    <div class="loading-bar"></div>
+                </div>
+                <p class="script loading-script">hold still</p>
+                <p class="loading-step" id="loadingStep">Analyzing features...</p>
+            </div>
+        </div>
+        
+        <!-- ===== ERROR SCREEN ===== -->
+        <div class="screen error-screen" id="errorScreen">
             <div class="error-icon">⚠️</div>
-            <div class="error-text" id="errorText">Something went wrong</div>
-            <button class="btn btn-primary" onclick="reset()">Try Again</button>
+            <p class="error-text" id="errorText">Something went wrong</p>
+            <button class="btn btn-primary" onclick="reset()">TRY AGAIN</button>
         </div>
         
-        <!-- Results Section -->
-        <div class="results-section" id="resultsSection">
+        <!-- ===== RESULTS SCREEN ===== -->
+        <div class="screen results-screen" id="resultsScreen">
             <div class="results-header">
-                <div class="results-title">Your Transformation</div>
-                <div class="results-headline">3 Futures</div>
+                <h1 class="headline results-title">3 FUTURES</h1>
+                <p class="script results-script">pick one</p>
             </div>
             
-            <div class="analysis-card" id="analysisCard">
-                <div class="analysis-title">AI Face Reading</div>
-                <div class="analysis-grid" id="analysisGrid"></div>
+            <div class="results-cards">
+                <div class="analysis-card" id="analysisCard">
+                    <div class="analysis-title">AI Face Reading</div>
+                    <div class="analysis-grid" id="analysisGrid"></div>
+                </div>
+                
+                <div id="lookCards"></div>
             </div>
             
-            <div id="lookCards"></div>
-            
-            <button class="btn btn-secondary" style="width:100%;margin-top:20px" onclick="reset()">← Start Over</button>
+            <div class="footer">
+                <button class="btn btn-outline" style="width:100%" onclick="reset()">← START OVER</button>
+                <p class="footer-text" style="margin-top:20px">STYLELOCK AI • BETA</p>
+            </div>
         </div>
         
-        <div class="footer">
-            <div class="footer-text">StyleLock AI • Beta</div>
-        </div>
     </div>
     
     <!-- Share Modal -->
     <div class="modal-overlay" id="shareModal">
         <div class="modal">
             <div class="modal-header">
-                <div class="modal-title">Share This Look</div>
+                <span class="modal-title">SHARE THIS LOOK</span>
                 <button class="modal-close" onclick="closeShareModal()">×</button>
             </div>
             <div class="modal-body">
-                <div class="share-options">
-                    <button class="share-btn" onclick="shareToWhatsApp()">
-                        <span class="share-icon">💬</span>
-                        Share to WhatsApp
-                    </button>
-                    <button class="share-btn" onclick="downloadImage()">
-                        <span class="share-icon">💾</span>
-                        Save to Phone
-                    </button>
-                    <button class="share-btn" onclick="copyLink()">
-                        <span class="share-icon">🔗</span>
-                        Copy Link
-                    </button>
-                </div>
+                <button class="share-btn" onclick="shareToWhatsApp()">
+                    <span class="share-icon">💬</span>
+                    Share to WhatsApp
+                </button>
+                <button class="share-btn" onclick="downloadImage()">
+                    <span class="share-icon">💾</span>
+                    Save to Phone
+                </button>
+                <button class="share-btn" onclick="copyLink()">
+                    <span class="share-icon">🔗</span>
+                    Copy Link
+                </button>
             </div>
         </div>
     </div>
@@ -1085,6 +1703,11 @@ async def serve_app():
         let lockedLookId = null;
         let shareImageUrl = null;
         
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+        
         function handleImageSelect(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -1092,8 +1715,7 @@ async def serve_app():
             reader.onload = function(ev) {
                 imageBase64 = ev.target.result.split(',')[1];
                 document.getElementById('previewImage').src = ev.target.result;
-                document.getElementById('cameraSection').style.display = 'none';
-                document.getElementById('previewSection').style.display = 'block';
+                showScreen('previewScreen');
             };
             reader.readAsDataURL(file);
         }
@@ -1107,34 +1729,32 @@ async def serve_app():
             currentResults = null;
             document.getElementById('cameraInput').value = '';
             document.getElementById('galleryInput').value = '';
-            document.getElementById('cameraSection').style.display = 'block';
-            document.getElementById('previewSection').style.display = 'none';
-            document.getElementById('loadingSection').style.display = 'none';
-            document.getElementById('errorSection').style.display = 'none';
-            document.getElementById('resultsSection').style.display = 'none';
+            showScreen('homeScreen');
         }
         
         async function generate() {
-            document.getElementById('previewSection').style.display = 'none';
-            document.getElementById('loadingSection').style.display = 'block';
+            showScreen('loadingScreen');
             
-            const steps = [
-                'Analyzing face shape...',
-                'Reading hair texture...',
-                'Calculating matches...',
-                'Generating previews...',
-                'Almost there...'
+            const phases = [
+                { main: 'READING', step: 'Analyzing face shape...' },
+                { main: 'READING', step: 'Detecting hair texture...' },
+                { main: 'MATCHING', step: 'Finding your looks...' },
+                { main: 'MATCHING', step: 'Generating previews...' },
+                { main: 'BUILDING', step: 'Almost there...' }
             ];
+            
             let i = 0;
             const interval = setInterval(() => {
-                i = (i + 1) % steps.length;
-                document.getElementById('loadingStep').textContent = steps[i];
+                i = (i + 1) % phases.length;
+                document.getElementById('loadingMain').textContent = phases[i].main;
+                document.getElementById('loadingBgText').textContent = phases[i].main;
+                document.getElementById('loadingStep').textContent = phases[i].step;
             }, 2500);
             
             try {
                 const resp = await fetch('/api/consult', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         image_base64: imageBase64,
                         vibe_preference: 'balanced'
@@ -1145,14 +1765,11 @@ async def serve_app():
                 
                 const text = await resp.text();
                 let data;
-                try {
-                    data = JSON.parse(text);
-                } catch(e) {
-                    throw new Error('Invalid server response');
-                }
+                try { data = JSON.parse(text); }
+                catch(e) { throw new Error('Invalid response'); }
                 
                 if (!resp.ok || !data.success) {
-                    throw new Error(data.detail || data.error || 'Generation failed');
+                    throw new Error(data.detail || 'Generation failed');
                 }
                 
                 currentResults = data;
@@ -1160,37 +1777,34 @@ async def serve_app():
                 
             } catch(e) {
                 clearInterval(interval);
-                document.getElementById('loadingSection').style.display = 'none';
-                document.getElementById('errorSection').style.display = 'block';
-                document.getElementById('errorText').textContent = e.message || 'Something went wrong';
+                document.getElementById('errorText').textContent = e.message;
+                showScreen('errorScreen');
             }
         }
         
         function showResults(data) {
-            document.getElementById('loadingSection').style.display = 'none';
-            document.getElementById('resultsSection').style.display = 'block';
+            showScreen('resultsScreen');
             
             const a = data.analysis || {};
             document.getElementById('analysisGrid').innerHTML = `
                 <div class="analysis-item">
-                    <div class="analysis-label">Face Shape</div>
-                    <div class="analysis-value">${a.face_shape || 'Unknown'}</div>
+                    <div class="analysis-label">Face</div>
+                    <div class="analysis-value">${a.face_shape || '—'}</div>
                 </div>
                 <div class="analysis-item">
-                    <div class="analysis-label">Hair Texture</div>
-                    <div class="analysis-value">${a.hair_texture || 'Unknown'}</div>
+                    <div class="analysis-label">Texture</div>
+                    <div class="analysis-value">${a.hair_texture || '—'}</div>
                 </div>
                 <div class="analysis-item">
                     <div class="analysis-label">Density</div>
-                    <div class="analysis-value">${a.hair_density || 'Medium'}</div>
+                    <div class="analysis-value">${a.hair_density || '—'}</div>
                 </div>
                 <div class="analysis-item">
-                    <div class="analysis-label">Current Length</div>
-                    <div class="analysis-value">~${a.estimated_top_length_cm || '?'} cm</div>
+                    <div class="analysis-label">Length</div>
+                    <div class="analysis-value">~${a.estimated_top_length_cm || '?'}cm</div>
                 </div>
             `;
             
-            // Find most achievable
             const recs = data.recommendations || [];
             let bestIdx = 0;
             let bestScore = -999;
@@ -1204,77 +1818,64 @@ async def serve_app():
             recs.forEach((look, idx) => {
                 const isBest = idx === bestIdx;
                 const isLocked = look.id === lockedLookId;
-                const tierClass = (look.tier || 'trending').toLowerCase();
-                const achClass = look.achievability || 'ready';
+                const tier = (look.tier || 'trending').toLowerCase();
+                const ach = look.achievability || 'ready';
                 
-                let achText, achTip;
-                if (achClass === 'ready') {
-                    achText = '✓ Ready Now';
-                    achTip = 'Your hair length works for this style';
-                } else if (achClass === 'grow') {
-                    achText = `↑ ${look.growth_weeks || '?'} weeks`;
-                    achTip = `Grow ~${Math.round((look.growth_weeks || 4) * 0.3)} cm more`;
-                } else {
-                    achText = '★ Dream Look';
-                    achTip = 'Save this for later';
-                }
+                let achText = ach === 'ready' ? '✓ READY NOW' : 
+                              ach === 'grow' ? `↑ ${look.growth_weeks || '?'} WEEKS` : '★ DREAM';
                 
-                const cardClass = isLocked ? 'look-card locked' : (isBest ? 'look-card featured' : 'look-card');
-                const banner = isLocked ? '<div class="locked-banner">🔒 Locked</div>' : 
-                               (isBest ? '<div class="best-match-banner">⭐ Best Match for Your Hair</div>' : '');
+                const cardClass = isLocked ? 'look-card locked' : (isBest ? 'look-card best-match' : 'look-card');
+                const strip = isLocked ? '<div class="locked-strip">🔒 LOCKED</div>' : 
+                              (isBest ? '<div class="best-match-strip">⭐ BEST MATCH FOR YOUR HAIR</div>' : '');
                 
                 const preview = look.preview_url ? 
-                    `<img src="${look.preview_url}" class="look-preview" alt="${look.name}">` : 
-                    `<div class="look-preview-placeholder">Preview generating...</div>`;
+                    `<img src="${look.preview_url}" class="look-image" alt="${look.name}">` : 
+                    `<div style="width:100%;height:100%;background:#1a1a1a;display:flex;align-items:center;justify-content:center;color:#444;font-size:12px;">Generating...</div>`;
                 
                 const cutCard = look.cut_card || {};
                 const lookId = look.id || idx;
                 
                 html += `
                 <div class="${cardClass}" id="card-${lookId}">
-                    ${banner}
+                    ${strip}
                     <div class="look-image-container">
                         ${preview}
+                        <div class="look-image-overlay"></div>
                         ${isLocked ? '<div class="locked-overlay"><div class="locked-stamp">LOCKED</div></div>' : ''}
-                        <div class="look-badge">
-                            <div class="look-badge-pct">${look.match_percentage || '?'}%</div>
-                            <div class="look-badge-label">match</div>
+                        <span class="look-tier-badge tier-${tier}">${look.tier || 'TRENDING'}</span>
+                        <div class="look-match-stamp">
+                            <span class="stamp-pct">${look.match_percentage || '?'}%</span>
+                            <span class="stamp-label">match</span>
+                        </div>
+                        <div class="look-info">
+                            <h3 class="look-name">${look.name || 'Hairstyle'}</h3>
+                            <p class="look-vibe">${look.vibe || ''}</p>
+                            <div class="look-meta">
+                                <span>🔧 ${look.maintenance || 'Medium'}</span>
+                                <span>⏱ ${look.daily_time || '3-5 min'}</span>
+                            </div>
+                            <span class="achievability ach-${ach}">${achText}</span>
                         </div>
                     </div>
-                    <div class="look-info">
-                        <span class="look-tier tier-${tierClass}">${look.tier || 'Trending'}</span>
-                        <div class="look-name">${look.name || 'Hairstyle'}</div>
-                        <div class="look-vibe">${look.vibe || ''}</div>
-                        <div class="look-meta">
-                            <span>🔧 ${look.maintenance || 'Medium'}</span>
-                            <span>⏱ ${look.daily_time || '3-5 min'}</span>
-                            ${look.thinning_friendly ? '<span>✓ Thin-friendly</span>' : ''}
-                        </div>
-                        <div class="achievability achievability-${achClass}">${achText}</div>
-                        <div class="achievability-tip">${achTip}</div>
-                        
-                        <button class="cut-card-toggle" onclick="toggleCutCard('${lookId}')">
-                            <span>View Cut Card</span>
-                            <span class="arrow">▼</span>
-                        </button>
-                        <div class="cut-card" id="cutcard-${lookId}">
-                            <div class="cut-card-row"><span class="cut-card-label">Fade</span><span class="cut-card-value">${cutCard.fade || '-'}</span></div>
-                            <div class="cut-card-row"><span class="cut-card-label">Top Length</span><span class="cut-card-value">${cutCard.top_length || '-'}</span></div>
-                            <div class="cut-card-row"><span class="cut-card-label">Texture</span><span class="cut-card-value">${cutCard.texture_method || '-'}</span></div>
-                            <div class="cut-card-row"><span class="cut-card-label">Fringe</span><span class="cut-card-value">${cutCard.fringe || '-'}</span></div>
-                            <div class="cut-card-row"><span class="cut-card-label">Styling</span><span class="cut-card-value">${cutCard.styling || '-'}</span></div>
-                            <div class="cut-card-row"><span class="cut-card-label">Products</span><span class="cut-card-value">${cutCard.products || '-'}</span></div>
-                            <div class="cut-card-row"><span class="cut-card-label">Beard</span><span class="cut-card-value">${cutCard.beard_pairing || '-'}</span></div>
-                            <div class="cut-card-row"><span class="cut-card-label">Avoid</span><span class="cut-card-value">${cutCard.avoid || '-'}</span></div>
-                        </div>
-                        
-                        <div class="look-actions">
-                            ${isLocked ? 
-                                `<button class="btn btn-share" onclick="openShare('${look.preview_url || ''}', '${look.name}')">📤 Share</button>` :
-                                `<button class="btn btn-lock" onclick="lockLook('${lookId}')">🔒 Lock This Look</button>
-                                 <button class="btn btn-share" onclick="openShare('${look.preview_url || ''}', '${look.name}')">📤</button>`
-                            }
-                        </div>
+                    <button class="cut-card-toggle" onclick="toggleCutCard('${lookId}')">
+                        <span>VIEW CUT CARD</span>
+                        <span class="arrow">▼</span>
+                    </button>
+                    <div class="cut-card" id="cutcard-${lookId}">
+                        <div class="cut-card-row"><span class="cut-card-label">Fade</span><span class="cut-card-value">${cutCard.fade || '—'}</span></div>
+                        <div class="cut-card-row"><span class="cut-card-label">Top Length</span><span class="cut-card-value">${cutCard.top_length || '—'}</span></div>
+                        <div class="cut-card-row"><span class="cut-card-label">Texture</span><span class="cut-card-value">${cutCard.texture_method || '—'}</span></div>
+                        <div class="cut-card-row"><span class="cut-card-label">Fringe</span><span class="cut-card-value">${cutCard.fringe || '—'}</span></div>
+                        <div class="cut-card-row"><span class="cut-card-label">Styling</span><span class="cut-card-value">${cutCard.styling || '—'}</span></div>
+                        <div class="cut-card-row"><span class="cut-card-label">Products</span><span class="cut-card-value">${cutCard.products || '—'}</span></div>
+                        <div class="cut-card-row"><span class="cut-card-label">Beard</span><span class="cut-card-value">${cutCard.beard_pairing || '—'}</span></div>
+                    </div>
+                    <div class="look-actions">
+                        ${isLocked ? 
+                            `<button class="btn btn-outline" onclick="openShare('${look.preview_url || ''}')">📤 SHARE</button>` :
+                            `<button class="btn btn-blue" onclick="lockLook('${lookId}')">🔒 LOCK THIS</button>
+                             <button class="btn btn-outline" onclick="openShare('${look.preview_url || ''}')">📤</button>`
+                        }
                     </div>
                 </div>`;
             });
@@ -1291,18 +1892,14 @@ async def serve_app():
         
         function lockLook(id) {
             lockedLookId = id;
-            if (currentResults) {
-                showResults(currentResults);
-            }
-            // Scroll to locked card
+            if (currentResults) showResults(currentResults);
             setTimeout(() => {
-                const card = document.getElementById('card-' + id);
-                if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                document.getElementById('card-' + id)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }, 100);
         }
         
-        function openShare(imageUrl, lookName) {
-            shareImageUrl = imageUrl;
+        function openShare(url) {
+            shareImageUrl = url;
             document.getElementById('shareModal').classList.add('active');
         }
         
@@ -1311,7 +1908,7 @@ async def serve_app():
         }
         
         function shareToWhatsApp() {
-            const text = encodeURIComponent('Check out my new hairstyle from StyleLock! 💇‍♂️');
+            const text = encodeURIComponent('Check out my new look from StyleLock! 💇‍♂️');
             const url = shareImageUrl ? encodeURIComponent(shareImageUrl) : '';
             window.open(`https://wa.me/?text=${text}%20${url}`, '_blank');
             closeShareModal();
@@ -1330,30 +1927,26 @@ async def serve_app():
         
         function copyLink() {
             if (shareImageUrl) {
-                navigator.clipboard.writeText(shareImageUrl).then(() => {
-                    alert('Link copied!');
-                });
+                navigator.clipboard.writeText(shareImageUrl).then(() => alert('Link copied!'));
             }
             closeShareModal();
         }
         
-        // Close modal on outside click
         document.getElementById('shareModal').addEventListener('click', function(e) {
             if (e.target === this) closeShareModal();
         });
     </script>
 </body>
 </html>
-"""
+'''
 
 
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
-    print(f"🚀 StyleLock AI v3.1 starting on port {port}")
-    print(f"   Features: Lock Look, Share, Cut Card Detail")
+    print(f"🚀 StyleLock AI v4.0 DESIGN EDITION starting on port {port}")
+    print(f"   Editorial UI • Oversized Typography • Grainy Textures")
     print(f"   {len(HERO_LOOKS)} Hero Looks loaded")
-    print(f"   Match % calibrated to 70-92% range")
     print(f"   Anthropic: {'✅' if ANTHROPIC_API_KEY else '❌'}")
     print(f"   VModel: {'✅' if VMODEL_API_KEY else '❌'}")
     uvicorn.run(app, host="0.0.0.0", port=port)
