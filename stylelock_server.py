@@ -308,7 +308,7 @@ HERO_LOOKS = [
 # FASTAPI APP
 # ============================================================
 
-app = FastAPI(title="StyleLock AI", version="4.1")
+app = FastAPI(title="StyleLock AI", version="4.2")
 
 app.add_middleware(
     CORSMiddleware,
@@ -547,10 +547,10 @@ async def serve_app():
         /* ===== HOME SCREEN ===== */
         .home { background: var(--cream); position: relative; }
         .home-bg {
-            position: absolute; top: -10%; left: -20%; right: -20%;
-            font-family: 'Anton', sans-serif; font-size: 22vw; line-height: 0.85;
+            position: absolute; top: 5%; left: 0; right: 0;
+            font-family: 'Anton', sans-serif; font-size: 18vw; line-height: 0.9;
             color: var(--blue); text-transform: uppercase; opacity: 1;
-            pointer-events: none; z-index: 1; white-space: nowrap;
+            pointer-events: none; z-index: 1; text-align: center;
         }
         .home-bg span { display: block; }
         .home-content { position: relative; z-index: 2; flex: 1; display: flex; flex-direction: column; justify-content: flex-end; padding: 24px; }
@@ -612,24 +612,23 @@ async def serve_app():
         .loading-step { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--gray); margin-top: 20px; letter-spacing: 0.2em; text-transform: uppercase; }
         
         /* ===== RESULTS CAROUSEL ===== */
-        .results { background: var(--cream); overflow: hidden; }
-        .results-header {
-            position: absolute; top: 0; left: 0; right: 0; z-index: 100;
-            padding: 20px; display: flex; justify-content: space-between; align-items: flex-start;
-        }
-        .results-title { font-family: 'Anton', sans-serif; font-size: 8vw; color: var(--black); line-height: 0.9; }
-        .results-title span { color: var(--blue); }
-        .results-nav { display: flex; gap: 8px; margin-top: 10px; }
-        .nav-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--black); opacity: 0.2; cursor: pointer; }
+        .results { background: var(--cream); overflow: hidden; position: relative; }
+        .results-nav-container { position: absolute; top: 25px; left: 50%; transform: translateX(-50%); z-index: 100; }
+        .results-nav { display: flex; gap: 8px; }
+        .nav-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--black); opacity: 0.3; cursor: pointer; transition: opacity 0.2s; }
         .nav-dot.active { opacity: 1; }
+        .results-back { position: absolute; top: 20px; right: 20px; z-index: 100; background: transparent; border: 2px solid var(--black); color: var(--black); width: 44px; height: 44px; font-size: 18px; cursor: pointer; }
         
         .carousel { display: flex; height: 100%; transition: transform 0.4s ease; }
         .slide { min-width: 100vw; height: 100vh; position: relative; display: flex; flex-direction: column; }
+        .slide-header { position: absolute; top: 20px; left: 20px; z-index: 50; }
+        .slide-header-title { font-family: 'Anton', sans-serif; font-size: 7vw; line-height: 0.9; }
         
         /* Slide backgrounds per tier */
         .slide-clean { background: var(--cream); }
         .slide-trending { background: linear-gradient(to bottom, #E8E0D5 0%, #D4CFC5 100%); }
         .slide-bold { background: var(--black); color: var(--white); }
+        .slide-bold .results-title, .slide-bold .nav-dot { color: var(--white); }
         
         .slide-photo {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -684,7 +683,7 @@ async def serve_app():
         }
         .cutcard-back { font-size: 24px; cursor: pointer; }
         .cutcard-title { font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; }
-        .cutcard-photo { width: 100%; aspect-ratio: 4/3; object-fit: cover; filter: grayscale(100%); }
+        .cutcard-photo { width: 100%; aspect-ratio: 1/1; object-fit: cover; object-position: top; filter: grayscale(100%); }
         .cutcard-script {
             position: absolute; top: 50%; right: 20px; transform: rotate(-10deg);
             font-family: 'Caveat', cursive; font-size: 20px; color: var(--volt);
@@ -807,14 +806,9 @@ async def serve_app():
 
 <!-- RESULTS CAROUSEL -->
 <div class="screen results" id="resultsScreen">
-    <div class="results-header">
-        <div>
-            <div class="results-title">YOUR <span>3</span><br>FUTURES</div>
-            <div class="results-nav" id="resultsNav"></div>
-        </div>
-        <button class="btn btn-outline" style="width:auto;padding:10px 16px;font-size:11px" onclick="goHome()">←</button>
-    </div>
     <div class="carousel" id="carousel"></div>
+    <div class="results-nav-container"><div class="results-nav" id="resultsNav"></div></div>
+    <button class="results-back" onclick="goHome()">←</button>
 </div>
 
 <!-- CUT CARD -->
@@ -933,9 +927,14 @@ function renderResults() {
         const tierClass = tier.toLowerCase();
         const scripts = ['not bad', 'pick one', 'this could be you'];
         const ach = look.achievability === 'ready' ? 'READY' : look.achievability === 'grow' ? `${look.growth_weeks}W GROW` : 'DREAM';
+        const headerColor = tier === 'BOLD' ? '#fff' : '#0A0A0A';
+        const blueColor = '#0047FF';
         
         return `
         <div class="slide slide-${tierClass}">
+            <div class="slide-header" style="color:${headerColor}">
+                <div class="slide-header-title">YOUR <span style="color:${blueColor}">3</span><br>FUTURES</div>
+            </div>
             <div class="slide-tier">${tier}</div>
             <div class="slide-photo">
                 ${look.preview_url ? `<img src="${look.preview_url}" alt="${look.name}">` : '<div style="width:100%;height:100%;background:#ddd;display:flex;align-items:center;justify-content:center;font-size:12px;color:#888">Generating...</div>'}
@@ -1053,5 +1052,5 @@ document.getElementById('resultsScreen').addEventListener('touchend', e => {
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
-    print(f"🚀 StyleLock v4.1 MAGAZINE EDITION on port {port}")
+    print(f"🚀 StyleLock v4.2 MAGAZINE EDITION on port {port}")
     uvicorn.run(app, host="0.0.0.0", port=port)
