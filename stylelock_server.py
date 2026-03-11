@@ -308,7 +308,7 @@ HERO_LOOKS = [
 # FASTAPI APP
 # ============================================================
 
-app = FastAPI(title="StyleLock AI", version="4.3")
+app = FastAPI(title="StyleLock AI", version="4.4")
 
 app.add_middleware(
     CORSMiddleware,
@@ -698,9 +698,9 @@ async def serve_app():
             padding: 8px 16px; font-family: 'Anton', sans-serif; font-size: 12px;
             text-transform: uppercase; transform: rotate(3deg);
         }
-        .cutcard-content { padding: 24px; }
+        .cutcard-content { padding: 24px; padding-bottom: 100px; }
         .cutcard-section { margin-bottom: 24px; border-bottom: 1px solid #ddd; padding-bottom: 20px; }
-        .cutcard-section:last-child { border-bottom: none; }
+        .cutcard-section:last-child { border-bottom: none; margin-bottom: 0; }
         .cutcard-label {
             display: inline-block; background: var(--blue); color: var(--white);
             font-family: 'Space Mono', monospace; font-size: 9px; padding: 4px 8px;
@@ -708,7 +708,13 @@ async def serve_app():
         }
         .cutcard-value { font-family: 'Anton', sans-serif; font-size: 28px; text-transform: uppercase; margin-bottom: 4px; }
         .cutcard-desc { font-size: 13px; color: var(--gray); line-height: 1.5; }
-        .cutcard-actions { padding: 20px 24px 40px; }
+        .cutcard-actions { 
+            position: sticky; bottom: 0; left: 0; right: 0;
+            padding: 20px 24px 40px; 
+            background: var(--cream);
+            border-top: 1px solid #ddd;
+            z-index: 20;
+        }
         
         /* ===== LOCKED SCREEN ===== */
         .locked { background: var(--cream); }
@@ -1056,5 +1062,5 @@ document.getElementById('resultsScreen').addEventListener('touchend', e => {
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
-    print(f"🚀 StyleLock v4.3 MAGAZINE EDITION on port {port}")
+    print(f"🚀 StyleLock v4.4 MAGAZINE EDITION on port {port}")
     uvicorn.run(app, host="0.0.0.0", port=port)
