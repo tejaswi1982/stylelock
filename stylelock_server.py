@@ -426,7 +426,7 @@ HERO_LOOKS = [
 # FASTAPI APP
 # ============================================================
 
-app = FastAPI(title="StyleLock AI", version="3.0")
+app = FastAPI(title="StyleLock AI", version="3.1")
 
 app.add_middleware(
     CORSMiddleware,
@@ -767,7 +767,7 @@ async def health():
         "status": "ok",
         "service": "StyleLock AI",
         "version": "3.0",
-        "features": ["vibe_selector", "lock_look", "share", "cut_card_detail"],
+        "features": ["lock_look", "share", "cut_card_detail"],
         "looks_count": len(HERO_LOOKS),
         "anthropic_key": bool(ANTHROPIC_API_KEY),
         "vmodel_key": bool(VMODEL_API_KEY)
@@ -846,17 +846,6 @@ async def serve_app():
         .header { text-align: center; padding: 32px 0 24px; }
         .logo { font-size: 32px; font-weight: 900; letter-spacing: -1px; background: linear-gradient(135deg, #fff 0%, #888 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .tagline { font-size: 11px; color: #666; margin-top: 6px; letter-spacing: 3px; text-transform: uppercase; }
-        
-        /* Vibe Selector */
-        .vibe-section { margin: 20px 0; }
-        .vibe-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; }
-        .vibe-selector { display: flex; gap: 8px; }
-        .vibe-btn { flex: 1; padding: 14px 8px; border: 2px solid #333; background: transparent; border-radius: 12px; color: #888; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; text-transform: uppercase; letter-spacing: 1px; }
-        .vibe-btn.active { border-color: #fff; color: #fff; background: #1a1a1a; }
-        .vibe-btn:hover { border-color: #555; }
-        .vibe-btn.safe.active { border-color: #00c9a7; color: #00c9a7; }
-        .vibe-btn.balanced.active { border-color: #D4FF00; color: #D4FF00; }
-        .vibe-btn.bold.active { border-color: #0047FF; color: #0047FF; }
         
         /* Camera Section */
         .camera-section { background: #111; border: 2px dashed #333; border-radius: 20px; padding: 40px 20px; margin: 20px 0; text-align: center; }
@@ -993,16 +982,6 @@ async def serve_app():
             <div class="tagline">Lock Your Next Self</div>
         </div>
         
-        <!-- Vibe Selector -->
-        <div class="vibe-section" id="vibeSection">
-            <div class="vibe-label">Choose Your Vibe</div>
-            <div class="vibe-selector">
-                <button class="vibe-btn safe" data-vibe="safe" onclick="selectVibe('safe')">🎯 Safe</button>
-                <button class="vibe-btn balanced active" data-vibe="balanced" onclick="selectVibe('balanced')">⚡ Balanced</button>
-                <button class="vibe-btn bold" data-vibe="bold" onclick="selectVibe('bold')">🔥 Bold</button>
-            </div>
-        </div>
-        
         <!-- Camera Section -->
         <div class="camera-section" id="cameraSection">
             <div class="camera-icon">📸</div>
@@ -1102,17 +1081,9 @@ async def serve_app():
     
     <script>
         let imageBase64 = '';
-        let selectedVibe = 'balanced';
         let currentResults = null;
         let lockedLookId = null;
         let shareImageUrl = null;
-        
-        function selectVibe(vibe) {
-            selectedVibe = vibe;
-            document.querySelectorAll('.vibe-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.vibe === vibe);
-            });
-        }
         
         function handleImageSelect(e) {
             const file = e.target.files[0];
@@ -1122,7 +1093,6 @@ async def serve_app():
                 imageBase64 = ev.target.result.split(',')[1];
                 document.getElementById('previewImage').src = ev.target.result;
                 document.getElementById('cameraSection').style.display = 'none';
-                document.getElementById('vibeSection').style.display = 'none';
                 document.getElementById('previewSection').style.display = 'block';
             };
             reader.readAsDataURL(file);
@@ -1138,7 +1108,6 @@ async def serve_app():
             document.getElementById('cameraInput').value = '';
             document.getElementById('galleryInput').value = '';
             document.getElementById('cameraSection').style.display = 'block';
-            document.getElementById('vibeSection').style.display = 'block';
             document.getElementById('previewSection').style.display = 'none';
             document.getElementById('loadingSection').style.display = 'none';
             document.getElementById('errorSection').style.display = 'none';
@@ -1168,7 +1137,7 @@ async def serve_app():
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
                         image_base64: imageBase64,
-                        vibe_preference: selectedVibe
+                        vibe_preference: 'balanced'
                     })
                 });
                 
@@ -1381,8 +1350,8 @@ async def serve_app():
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
-    print(f"🚀 StyleLock AI v3.0 starting on port {port}")
-    print(f"   Features: Vibe Selector, Lock Look, Share, Cut Card Detail")
+    print(f"🚀 StyleLock AI v3.1 starting on port {port}")
+    print(f"   Features: Lock Look, Share, Cut Card Detail")
     print(f"   {len(HERO_LOOKS)} Hero Looks loaded")
     print(f"   Match % calibrated to 70-92% range")
     print(f"   Anthropic: {'✅' if ANTHROPIC_API_KEY else '❌'}")
