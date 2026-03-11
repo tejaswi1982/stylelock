@@ -1,11 +1,13 @@
 """
-StyleLock AI - Backend Server v4.0
-DESIGN EDITION - Editorial aesthetic, cult energy
-Features:
-- Design-accurate frontend matching Visual North Star
-- Oversized typography, grainy textures, duotone treatment
-- Lock This Look, Share, Cut Card detail
-- Calibrated match percentages (70-92%)
+StyleLock AI - Backend Server v4.1
+MAGAZINE EDITION - Full Editorial Redesign
+- Full-bleed photos (one look = one screen)
+- MASSIVE tier typography over photos
+- Wavy/vintage stamp badges
+- Cream/colored backgrounds per tier
+- Magazine-style Cut Card (full page)
+- Poster-worthy Locked screen
+- Swipeable results carousel
 """
 
 import os
@@ -35,7 +37,7 @@ VMODEL_HAIRSTYLE_VERSION = "5c0440717a995b0bbd93377bd65dbb4fe360f67967c506aa6bd8
 CLAUDE_MODEL = "claude-opus-4-20250514"
 
 # ============================================================
-# YOUR 16 HERO LOOKS - WITH REAL IMAGE URLs
+# HERO LOOKS DATABASE
 # ============================================================
 
 HAIRSTYLE_REFERENCES = {
@@ -57,12 +59,7 @@ HAIRSTYLE_REFERENCES = {
     "two_block_cut": {"name": "The Two-Block Cut", "tier": "TRENDING", "source": "https://iili.io/qRqV33Q.png"},
 }
 
-# ============================================================
-# COMPLETE HERO LOOKS DATABASE WITH CUT CARD SPECS
-# ============================================================
-
 HERO_LOOKS = [
-    # ===== TIER 1: CLEAN & CORPORATE =====
     {
         "id": "classic_scissor_taper",
         "name": "Classic Scissor Taper",
@@ -97,7 +94,7 @@ HERO_LOOKS = [
         "min_length_cm": 5,
         "thinning_friendly": False,
         "cut_card": {
-            "fade": "Low skin fade, guard 0.5 → 2",
+            "fade": "Low skin fade, guard 0.5 to 2",
             "top_length": "7-10 cm",
             "texture_method": "Scissor cut with clean lines",
             "fringe": "Hard side part, swept back",
@@ -105,28 +102,6 @@ HERO_LOOKS = [
             "products": "Classic pomade, finishing spray",
             "beard_pairing": "Clean shaven or short boxed beard",
             "avoid": "Messy texture, excessive volume"
-        }
-    },
-    {
-        "id": "neat_short_crop",
-        "name": "Neat Short Crop",
-        "tier": "CLEAN",
-        "vibe": "Boardroom Ready",
-        "maintenance": "Low",
-        "daily_time": "1-2 min",
-        "face_shapes": {"oval": 5, "round": 3, "square": 5, "oblong": 4, "heart": 3, "diamond": 4},
-        "textures": {"straight": 5, "wavy": 4, "curly": 3, "coarse": 4, "fine": 5, "thick": 5},
-        "min_length_cm": 2,
-        "thinning_friendly": True,
-        "cut_card": {
-            "fade": "Tapered sides, guard 2 → 4",
-            "top_length": "3-5 cm",
-            "texture_method": "Clipper over comb, blended",
-            "fringe": "Short, brushed forward or slightly up",
-            "styling": "Towel dry, small amount of clay",
-            "products": "Matte clay, light hold",
-            "beard_pairing": "Any - versatile",
-            "avoid": "Over-styling, too much shine"
         }
     },
     {
@@ -152,30 +127,6 @@ HERO_LOOKS = [
         }
     },
     {
-        "id": "natural_wave_tidy",
-        "name": "Natural Wave Tidy",
-        "tier": "CLEAN",
-        "vibe": "Effortless Professional",
-        "maintenance": "Medium",
-        "daily_time": "3-4 min",
-        "face_shapes": {"oval": 5, "round": 4, "square": 4, "oblong": 3, "heart": 5, "diamond": 5},
-        "textures": {"straight": 2, "wavy": 5, "curly": 5, "coarse": 4, "fine": 3, "thick": 5},
-        "min_length_cm": 4,
-        "thinning_friendly": False,
-        "cut_card": {
-            "fade": "Low taper, guard 1.5 → 3",
-            "top_length": "5-8 cm",
-            "texture_method": "Point cutting to enhance waves",
-            "fringe": "Natural wave falling on forehead",
-            "styling": "Scrunch with curl cream, air dry",
-            "products": "Curl cream, light oil",
-            "beard_pairing": "Stubble or short beard",
-            "avoid": "Brushing when dry, heavy gels"
-        }
-    },
-    
-    # ===== TIER 2: FASHION-FORWARD / TRENDING =====
-    {
         "id": "taper_textured_top",
         "name": "Low/Mid Taper + Textured Top",
         "tier": "TRENDING",
@@ -187,7 +138,7 @@ HERO_LOOKS = [
         "min_length_cm": 4,
         "thinning_friendly": False,
         "cut_card": {
-            "fade": "Low-mid taper, guard 1 → 3",
+            "fade": "Low-mid taper, guard 1 to 3",
             "top_length": "5-8 cm",
             "texture_method": "Choppy point cutting, texturizing shears",
             "fringe": "Textured, swept to side or forward",
@@ -209,7 +160,7 @@ HERO_LOOKS = [
         "min_length_cm": 2,
         "thinning_friendly": True,
         "cut_card": {
-            "fade": "Mid-high fade, guard 0.5 → 2",
+            "fade": "Mid-high fade, guard 0.5 to 2",
             "top_length": "3-5 cm",
             "texture_method": "Choppy, piecey texture throughout",
             "fringe": "Forward falling, textured, on forehead",
@@ -217,28 +168,6 @@ HERO_LOOKS = [
             "products": "Matte clay, texture powder",
             "beard_pairing": "Stubble or short beard",
             "avoid": "Over-styling, heavy product"
-        }
-    },
-    {
-        "id": "two_block_cut",
-        "name": "The Two-Block Cut",
-        "tier": "TRENDING",
-        "vibe": "K-Pop Influence",
-        "maintenance": "Medium",
-        "daily_time": "5-7 min",
-        "face_shapes": {"oval": 5, "round": 3, "square": 4, "oblong": 5, "heart": 5, "diamond": 4},
-        "textures": {"straight": 5, "wavy": 4, "curly": 2, "coarse": 3, "fine": 4, "thick": 5},
-        "min_length_cm": 8,
-        "thinning_friendly": False,
-        "cut_card": {
-            "fade": "Disconnected - shaved sides/back, guard 1",
-            "top_length": "10-15 cm",
-            "texture_method": "Layered, piecey ends",
-            "fringe": "Long, center-parted or side-swept",
-            "styling": "Blow dry with volume, flat iron optional",
-            "products": "Volumizing mousse, light wax, shine spray",
-            "beard_pairing": "Clean shaven only",
-            "avoid": "Heavy stubble, thick beard"
         }
     },
     {
@@ -264,50 +193,6 @@ HERO_LOOKS = [
         }
     },
     {
-        "id": "curls_waves_shaping",
-        "name": "Curls / Waves Shaping",
-        "tier": "TRENDING",
-        "vibe": "Natural Texture",
-        "maintenance": "Medium",
-        "daily_time": "3-5 min",
-        "face_shapes": {"oval": 5, "round": 4, "square": 4, "oblong": 4, "heart": 4, "diamond": 5},
-        "textures": {"straight": 1, "wavy": 4, "curly": 5, "coarse": 5, "fine": 2, "thick": 5},
-        "min_length_cm": 5,
-        "thinning_friendly": False,
-        "cut_card": {
-            "fade": "Temp fade or taper, guard 0.5 → 2",
-            "top_length": "6-10 cm (stretched)",
-            "texture_method": "Curl-specific cutting, shape the curl pattern",
-            "fringe": "Curls fall naturally",
-            "styling": "Apply curl cream to wet hair, diffuse or air dry",
-            "products": "Curl cream, leave-in conditioner, light oil",
-            "beard_pairing": "Stubble or shaped beard",
-            "avoid": "Brushing dry, heavy silicones"
-        }
-    },
-    {
-        "id": "modern_shag_soft_mullet",
-        "name": "Modern Shag / Soft Mullet",
-        "tier": "TRENDING",
-        "vibe": "Weekend Casual",
-        "maintenance": "High",
-        "daily_time": "5-7 min",
-        "face_shapes": {"oval": 5, "round": 3, "square": 5, "oblong": 4, "heart": 4, "diamond": 4},
-        "textures": {"straight": 4, "wavy": 5, "curly": 3, "coarse": 4, "fine": 3, "thick": 5},
-        "min_length_cm": 8,
-        "thinning_friendly": False,
-        "cut_card": {
-            "fade": "No fade - tapered, longer at back",
-            "top_length": "8-12 cm, back 10-15 cm",
-            "texture_method": "Heavy layers, razored ends",
-            "fringe": "Choppy curtain bangs",
-            "styling": "Blow dry with texture, scrunch for movement",
-            "products": "Texture spray, light clay",
-            "beard_pairing": "Stubble or mustache",
-            "avoid": "Flat ironing, heavy pomades"
-        }
-    },
-    {
         "id": "burst_fade",
         "name": "The Burst Fade",
         "tier": "TRENDING",
@@ -319,7 +204,7 @@ HERO_LOOKS = [
         "min_length_cm": 4,
         "thinning_friendly": False,
         "cut_card": {
-            "fade": "Burst fade around ears, guard 0 → 2",
+            "fade": "Burst fade around ears, guard 0 to 2",
             "top_length": "5-8 cm",
             "texture_method": "Enhance natural curl/wave pattern",
             "fringe": "Curls or waves fall naturally",
@@ -329,8 +214,6 @@ HERO_LOOKS = [
             "avoid": "Brushing when dry, heavy products"
         }
     },
-    
-    # ===== TIER 3: BOLD & EDITORIAL =====
     {
         "id": "quiff_skin_fade",
         "name": "Modern Quiff + Skin Fade",
@@ -409,7 +292,7 @@ HERO_LOOKS = [
         "min_length_cm": 3,
         "thinning_friendly": True,
         "cut_card": {
-            "fade": "Mid-high fade, guard 0.5 → 2",
+            "fade": "Mid-high fade, guard 0.5 to 2",
             "top_length": "4-6 cm",
             "texture_method": "Textured crop base",
             "fringe": "Forward, textured, bleached",
@@ -425,7 +308,7 @@ HERO_LOOKS = [
 # FASTAPI APP
 # ============================================================
 
-app = FastAPI(title="StyleLock AI", version="4.0")
+app = FastAPI(title="StyleLock AI", version="4.1")
 
 app.add_middleware(
     CORSMiddleware,
@@ -440,23 +323,16 @@ class ConsultRequest(BaseModel):
     vibe_preference: str = "balanced"
 
 # ============================================================
-# HELPER FUNCTIONS
+# HELPER FUNCTIONS (same as before)
 # ============================================================
 
 async def upload_image_to_host(image_base64: str) -> str:
-    """Upload base64 image to free image host, return URL"""
     print("  📤 Uploading user image to host...")
-    
     async with httpx.AsyncClient(timeout=60) as client:
         try:
             resp = await client.post(
                 "https://freeimage.host/api/1/upload",
-                data={
-                    "key": "6d207e02198a847aa98d0a2a901485a5",
-                    "action": "upload",
-                    "source": image_base64,
-                    "format": "json"
-                }
+                data={"key": "6d207e02198a847aa98d0a2a901485a5", "action": "upload", "source": image_base64, "format": "json"}
             )
             if resp.status_code == 200:
                 data = resp.json()
@@ -464,19 +340,14 @@ async def upload_image_to_host(image_base64: str) -> str:
                     url = data["image"]["url"]
                     print(f"  ✅ Uploaded: {url[:50]}...")
                     return url
-            print(f"  ⚠️ Upload error: {resp.status_code}")
         except Exception as e:
             print(f"  ⚠️ Upload failed: {e}")
-    
     raise Exception("Failed to upload image")
 
 
 async def analyze_with_claude(image_base64: str) -> dict:
-    """Analyze face/hair with Claude Vision (Opus 4.5)"""
-    print("Step 1: Analyzing with Claude Vision (Opus 4.5)...")
-    
+    print("Step 1: Analyzing with Claude Vision...")
     prompt = """Analyze this person's face and hair for hairstyle recommendations. Return ONLY valid JSON:
-
 {
     "face_shape": "oval|round|square|oblong|heart|diamond",
     "hair_texture": "straight|wavy|curly|coarse|fine|thick",
@@ -487,250 +358,122 @@ async def analyze_with_claude(image_base64: str) -> dict:
     "jaw_definition": "strong|medium|soft",
     "current_style": "<brief description>",
     "grey_percentage": <number 0-100>,
-    "analysis_notes": "<key observations for hairstyle recommendations>"
+    "analysis_notes": "<key observations>"
 }
-
 Be accurate. Estimate hair length in centimeters carefully."""
 
     async with httpx.AsyncClient(timeout=60) as client:
         try:
             resp = await client.post(
                 "https://api.anthropic.com/v1/messages",
-                headers={
-                    "x-api-key": ANTHROPIC_API_KEY,
-                    "anthropic-version": "2023-06-01",
-                    "content-type": "application/json"
-                },
-                json={
-                    "model": CLAUDE_MODEL,
-                    "max_tokens": 1000,
-                    "messages": [{
-                        "role": "user",
-                        "content": [
-                            {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": image_base64}},
-                            {"type": "text", "text": prompt}
-                        ]
-                    }]
-                }
+                headers={"x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+                json={"model": CLAUDE_MODEL, "max_tokens": 1000, "messages": [{"role": "user", "content": [
+                    {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": image_base64}},
+                    {"type": "text", "text": prompt}
+                ]}]}
             )
-            
             if resp.status_code != 200:
-                print(f"  ❌ Claude API error: {resp.status_code}")
                 raise Exception(f"Claude API error: {resp.status_code}")
-            
             data = resp.json()
             text = data["content"][0]["text"]
-            
-            if "```json" in text:
-                text = text.split("```json")[1].split("```")[0]
-            elif "```" in text:
-                text = text.split("```")[1].split("```")[0]
-            
+            if "```json" in text: text = text.split("```json")[1].split("```")[0]
+            elif "```" in text: text = text.split("```")[1].split("```")[0]
             analysis = json.loads(text.strip())
-            print(f"  ✅ Analysis: {analysis['face_shape']} face, {analysis['hair_texture']} hair, ~{analysis['estimated_top_length_cm']}cm")
+            print(f"  ✅ Analysis: {analysis['face_shape']} face, {analysis['hair_texture']} hair")
             return analysis
-            
         except json.JSONDecodeError:
-            print("  ⚠️ JSON parse error, using fallback")
-            return {
-                "face_shape": "oval", "hair_texture": "wavy", "hair_density": "medium",
-                "estimated_top_length_cm": 5, "hairline_state": "full",
-                "forehead_size": "medium", "jaw_definition": "medium",
-                "current_style": "short natural", "grey_percentage": 0,
-                "analysis_notes": "Fallback values used"
-            }
+            return {"face_shape": "oval", "hair_texture": "wavy", "hair_density": "medium", "estimated_top_length_cm": 5, "hairline_state": "full", "forehead_size": "medium", "jaw_definition": "medium", "current_style": "short natural", "grey_percentage": 0, "analysis_notes": "Fallback"}
 
 
 def score_and_recommend(analysis: dict, vibe: str) -> list:
-    """Score all 16 looks against user's attributes, return top 3"""
-    print(f"Step 2: Scoring 16 looks (vibe: {vibe})...")
-    
+    print(f"Step 2: Scoring looks...")
     face = analysis.get("face_shape", "oval").lower()
     texture = analysis.get("hair_texture", "wavy").lower()
     length_cm = analysis.get("estimated_top_length_cm", 5)
-    density = analysis.get("hair_density", "medium").lower()
     hairline = analysis.get("hairline_state", "full").lower()
     
-    scored_looks = []
-    
+    scored = []
     for look in HERO_LOOKS:
         face_score = look["face_shapes"].get(face, 3) * 8
         texture_score = look["textures"].get(texture, 3) * 7
+        thinning_bonus = 10 if ("thinning" in hairline or "receding" in hairline) and look["thinning_friendly"] else 0
+        vibe_score = 15 if (vibe == "safe" and look["tier"] == "CLEAN") or (vibe == "bold" and look["tier"] == "BOLD") or (vibe == "balanced" and look["tier"] == "TRENDING") else 10
+        raw = face_score + texture_score + thinning_bonus + vibe_score
+        pct = max(70, min(92, int(70 + (raw - 50) * 22 / 50)))
         
-        thinning_bonus = 0
-        if "thinning" in hairline or "receding" in hairline:
-            thinning_bonus = 10 if look["thinning_friendly"] else -5
-        
-        vibe_score = 10
-        if vibe == "safe" and look["tier"] == "CLEAN":
-            vibe_score = 15
-        elif vibe == "bold" and look["tier"] == "BOLD":
-            vibe_score = 15
-        elif vibe == "balanced" and look["tier"] == "TRENDING":
-            vibe_score = 15
-        
-        raw_score = face_score + texture_score + thinning_bonus + vibe_score
-        
-        min_raw, max_raw = 50, 100
-        min_pct, max_pct = 70, 92
-        calibrated_pct = min_pct + (raw_score - min_raw) * (max_pct - min_pct) / (max_raw - min_raw)
-        calibrated_pct = max(min_pct, min(max_pct, int(calibrated_pct)))
-        
-        min_length = look["min_length_cm"]
-        if length_cm >= min_length:
-            achievability = "ready"
-            growth_weeks = 0
+        min_len = look["min_length_cm"]
+        if length_cm >= min_len:
+            ach, weeks = "ready", 0
         else:
-            growth_needed = min_length - length_cm
-            growth_weeks = int(growth_needed / 0.3)
-            achievability = "grow" if growth_weeks <= 12 else "dream"
+            weeks = int((min_len - length_cm) / 0.3)
+            ach = "grow" if weeks <= 12 else "dream"
         
         ref = HAIRSTYLE_REFERENCES.get(look["id"], {})
-        
-        scored_looks.append({
-            **look,
-            "total_score": raw_score,
-            "match_percentage": calibrated_pct,
-            "achievability": achievability,
-            "growth_weeks": growth_weeks,
-            "reference_url": ref.get("source", "")
-        })
+        scored.append({**look, "total_score": raw, "match_percentage": pct, "achievability": ach, "growth_weeks": weeks, "reference_url": ref.get("source", "")})
     
-    scored_looks.sort(key=lambda x: x["total_score"], reverse=True)
-    
-    result = []
-    tiers_found = set()
-    
-    tier_order = ["TRENDING", "CLEAN", "BOLD"]
-    
-    for tier in tier_order:
-        for look in scored_looks:
-            if look["tier"] == tier and tier not in tiers_found:
-                tiers_found.add(tier)
+    scored.sort(key=lambda x: x["total_score"], reverse=True)
+    result, tiers = [], set()
+    for tier in ["TRENDING", "CLEAN", "BOLD"]:
+        for look in scored:
+            if look["tier"] == tier and tier not in tiers:
+                tiers.add(tier)
                 result.append(look)
                 break
-    
     while len(result) < 3:
-        for look in scored_looks:
+        for look in scored:
             if look not in result:
                 result.append(look)
                 break
-    
     print(f"  ✅ Top 3: {[l['name'] for l in result[:3]]}")
     return result[:3]
 
 
 async def generate_hairstyle_vmodel(target_url: str, look: dict) -> Optional[str]:
-    """Generate hairstyle preview using VModel API"""
-    look_name = look.get("name", "Unknown")
-    source_url = look.get("reference_url", "")
-    
-    if not source_url:
-        print(f"    [{look_name}] ❌ No reference URL")
-        return None
-    
-    print(f"    [{look_name}] Calling VModel...")
-    
-    headers = {
-        "Authorization": f"Bearer {VMODEL_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    
-    payload = {
-        "version": VMODEL_HAIRSTYLE_VERSION,
-        "input": {
-            "source": source_url,
-            "target": target_url,
-            "disable_safety_checker": False
-        }
-    }
+    name = look.get("name", "Unknown")
+    source = look.get("reference_url", "")
+    if not source: return None
+    print(f"    [{name}] Calling VModel...")
+    headers = {"Authorization": f"Bearer {VMODEL_API_KEY}", "Content-Type": "application/json"}
+    payload = {"version": VMODEL_HAIRSTYLE_VERSION, "input": {"source": source, "target": target_url, "disable_safety_checker": False}}
     
     async with httpx.AsyncClient(timeout=180) as client:
         try:
             resp = await client.post(VMODEL_API_URL, headers=headers, json=payload)
-            
-            if resp.status_code != 200:
-                print(f"    [{look_name}] ❌ API error: {resp.status_code}")
-                return None
-            
+            if resp.status_code != 200: return None
             data = resp.json()
-            
             if data.get("status") == "succeeded" and data.get("output"):
                 output = data["output"]
-                if isinstance(output, list) and output:
-                    print(f"    [{look_name}] ✅ Instant result!")
-                    return output[0]
-                elif isinstance(output, str):
-                    print(f"    [{look_name}] ✅ Instant result (string)!")
-                    return output
+                return output[0] if isinstance(output, list) else output
             
-            result_obj = data.get("result", {})
-            task_id = result_obj.get("task_id") or data.get("task_id") or data.get("id")
-            if not task_id:
-                print(f"    [{look_name}] ❌ No task_id")
-                return None
+            task_id = data.get("result", {}).get("task_id") or data.get("task_id") or data.get("id")
+            if not task_id: return None
             
-            print(f"    [{look_name}] Polling task {task_id}...")
-            
-            for attempt in range(40):
+            for _ in range(40):
                 await asyncio.sleep(3)
-                
-                poll_url = f"{VMODEL_TASK_URL}/{task_id}"
-                poll_resp = await client.get(poll_url, headers=headers)
-                
-                if poll_resp.status_code != 200:
-                    continue
-                
-                poll_data = poll_resp.json()
-                
-                result_data = poll_data.get("result", poll_data)
-                status = result_data.get("status") or poll_data.get("status", "unknown")
-                
+                poll = await client.get(f"{VMODEL_TASK_URL}/{task_id}", headers=headers)
+                if poll.status_code != 200: continue
+                pdata = poll.json()
+                rd = pdata.get("result", pdata)
+                status = rd.get("status") or pdata.get("status", "")
                 if status in ["succeeded", "completed", "success", "done"]:
-                    output = (
-                        result_data.get("output") or 
-                        result_data.get("output_url") or 
-                        result_data.get("image_url") or
-                        result_data.get("result_url") or
-                        poll_data.get("output")
-                    )
-                    if output:
-                        url = output[0] if isinstance(output, list) else output
-                        print(f"    [{look_name}] ✅ Done!")
+                    out = rd.get("output") or rd.get("output_url") or rd.get("image_url") or pdata.get("output")
+                    if out:
+                        url = out[0] if isinstance(out, list) else out
+                        print(f"    [{name}] ✅ Done!")
                         return url
                     return None
-                
-                if status in ["failed", "error", "cancelled"]:
-                    print(f"    [{look_name}] ❌ Failed")
-                    return None
-            
-            print(f"    [{look_name}] ❌ Timeout")
+                if status in ["failed", "error", "cancelled"]: return None
             return None
-            
-        except Exception as e:
-            print(f"    [{look_name}] ❌ Error: {e}")
-            return None
+        except: return None
 
 
 async def generate_all_previews(target_url: str, looks: list) -> list:
-    """Generate all 3 previews in parallel"""
-    print("Step 4: Generating 3 previews with VModel...")
-    
-    tasks = [generate_hairstyle_vmodel(target_url, look) for look in looks]
+    print("Step 4: Generating previews...")
+    tasks = [generate_hairstyle_vmodel(target_url, l) for l in looks]
     results = await asyncio.gather(*tasks, return_exceptions=True)
-    
-    for i, (look, result) in enumerate(zip(looks, results)):
-        if isinstance(result, Exception):
-            looks[i]["preview_url"] = None
-            looks[i]["preview_error"] = str(result)
-        elif result:
-            looks[i]["preview_url"] = result
-        else:
-            looks[i]["preview_url"] = None
-    
-    success = sum(1 for r in results if r and not isinstance(r, Exception))
-    print(f"  ✅ Generated {success}/3 previews")
-    
+    for i, (look, res) in enumerate(zip(looks, results)):
+        looks[i]["preview_url"] = res if res and not isinstance(res, Exception) else None
+    print(f"  ✅ Generated {sum(1 for r in results if r and not isinstance(r, Exception))}/3")
     return looks
 
 
@@ -740,61 +483,34 @@ async def generate_all_previews(target_url: str, looks: list) -> list:
 
 @app.get("/")
 async def health():
-    return {
-        "status": "ok",
-        "service": "StyleLock AI",
-        "version": "4.0",
-        "edition": "DESIGN",
-        "features": ["editorial_ui", "lock_look", "share", "cut_card_detail"],
-        "looks_count": len(HERO_LOOKS),
-        "anthropic_key": bool(ANTHROPIC_API_KEY),
-        "vmodel_key": bool(VMODEL_API_KEY)
-    }
-
+    return {"status": "ok", "service": "StyleLock AI", "version": "4.1", "edition": "MAGAZINE", "looks_count": len(HERO_LOOKS)}
 
 @app.get("/api/debug")
 async def debug():
-    results = {"config": {"model": CLAUDE_MODEL, "looks": len(HERO_LOOKS)}, "tests": {}}
-    
+    results = {"tests": {}}
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.post(
-                "https://api.anthropic.com/v1/messages",
-                headers={"x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json"},
-                json={"model": CLAUDE_MODEL, "max_tokens": 10, "messages": [{"role": "user", "content": "Hi"}]}
-            )
-            results["tests"]["anthropic"] = "✅ Working" if resp.status_code == 200 else f"❌ {resp.status_code}"
-    except Exception as e:
-        results["tests"]["anthropic"] = f"❌ {e}"
-    
+        async with httpx.AsyncClient(timeout=10) as c:
+            r = await c.post("https://api.anthropic.com/v1/messages", headers={"x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json"}, json={"model": CLAUDE_MODEL, "max_tokens": 10, "messages": [{"role": "user", "content": "Hi"}]})
+            results["tests"]["anthropic"] = "✅" if r.status_code == 200 else f"❌ {r.status_code}"
+    except Exception as e: results["tests"]["anthropic"] = f"❌ {e}"
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get("https://api.vmodel.ai/api/user/v1/me", headers={"Authorization": f"Bearer {VMODEL_API_KEY}"})
-            results["tests"]["vmodel"] = "✅ Working" if resp.status_code == 200 else f"⚠️ {resp.status_code}"
-    except Exception as e:
-        results["tests"]["vmodel"] = f"❌ {e}"
-    
+        async with httpx.AsyncClient(timeout=10) as c:
+            r = await c.get("https://api.vmodel.ai/api/user/v1/me", headers={"Authorization": f"Bearer {VMODEL_API_KEY}"})
+            results["tests"]["vmodel"] = "✅" if r.status_code == 200 else f"⚠️ {r.status_code}"
+    except Exception as e: results["tests"]["vmodel"] = f"❌ {e}"
     return results
-
 
 @app.post("/api/consult")
 async def consult(request: ConsultRequest):
-    """Main consultation - full pipeline"""
     print("\n" + "="*60 + "\nNEW CONSULTATION\n" + "="*60)
-    
     try:
         analysis = await analyze_with_claude(request.image_base64)
-        recommendations = score_and_recommend(analysis, request.vibe_preference)
-        
-        print("Step 3: Uploading user image...")
-        target_url = await upload_image_to_host(request.image_base64)
-        
-        recommendations = await generate_all_previews(target_url, recommendations)
-        
-        print("\n✅ CONSULTATION COMPLETE\n" + "="*60)
-        
-        return {"success": True, "analysis": analysis, "recommendations": recommendations}
-        
+        recs = score_and_recommend(analysis, request.vibe_preference)
+        print("Step 3: Uploading image...")
+        target = await upload_image_to_host(request.image_base64)
+        recs = await generate_all_previews(target, recs)
+        print("\n✅ DONE\n" + "="*60)
+        return {"success": True, "analysis": analysis, "recommendations": recs}
     except Exception as e:
         print(f"\n❌ ERROR: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -802,1151 +518,540 @@ async def consult(request: ConsultRequest):
 
 @app.get("/app", response_class=HTMLResponse)
 async def serve_app():
-    """Serve the design-accurate frontend"""
-    return '''
-<!DOCTYPE html>
+    return '''<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>STYLELOCK — Future You</title>
+    <title>STYLELOCK</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Caveat:wght@500;700&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --black: #0A0A0A;
             --white: #FFFFFF;
+            --cream: #F5F0E6;
             --volt: #D4FF00;
             --blue: #0047FF;
-            --cream: #F5F0E6;
-            --gray: #666666;
-            --gray-dark: #1A1A1A;
+            --gray: #888888;
+            --taupe: #C4B8A8;
         }
-        
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Inter', sans-serif; background: var(--black); color: var(--black); }
         
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background: var(--black); 
-            color: var(--white); 
-            min-height: 100vh; 
-            overflow-x: hidden;
-            position: relative;
-        }
-        
-        /* Noise texture overlay */
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-            opacity: 0.03;
-            pointer-events: none;
-            z-index: 1000;
-        }
-        
-        .container { 
-            max-width: 100%; 
-            min-height: 100vh; 
-            position: relative;
-            overflow: hidden;
-        }
-        
-        /* ===== TYPOGRAPHY ===== */
-        .headline {
-            font-family: 'Anton', sans-serif;
-            text-transform: uppercase;
-            line-height: 0.85;
-            letter-spacing: -0.02em;
-        }
-        
-        .script {
-            font-family: 'Caveat', cursive;
-            font-weight: 500;
-        }
-        
-        .mono {
-            font-family: 'Space Mono', monospace;
-            font-size: 10px;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-        }
-        
-        /* ===== HOME SCREEN ===== */
-        .screen { display: none; min-height: 100vh; }
+        /* Screens */
+        .screen { display: none; height: 100vh; width: 100vw; position: fixed; top: 0; left: 0; overflow: hidden; }
         .screen.active { display: flex; flex-direction: column; }
         
-        .home-screen {
-            background: var(--black);
-            position: relative;
-            justify-content: space-between;
-            padding: 0;
+        /* ===== HOME SCREEN ===== */
+        .home { background: var(--cream); position: relative; }
+        .home-bg {
+            position: absolute; top: -10%; left: -20%; right: -20%;
+            font-family: 'Anton', sans-serif; font-size: 22vw; line-height: 0.85;
+            color: var(--blue); text-transform: uppercase; opacity: 1;
+            pointer-events: none; z-index: 1; white-space: nowrap;
         }
-        
-        .home-bg-text {
-            position: absolute;
-            top: 0;
-            left: -5%;
-            right: -5%;
-            font-family: 'Anton', sans-serif;
-            font-size: 28vw;
-            line-height: 0.85;
-            color: var(--blue);
-            text-transform: uppercase;
-            pointer-events: none;
-            z-index: 1;
-            overflow: hidden;
-        }
-        
-        .home-content {
-            position: relative;
-            z-index: 2;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-            padding: 20px;
-            padding-bottom: 40px;
-        }
-        
-        .home-labels {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            right: 20px;
-            display: flex;
-            justify-content: space-between;
-            z-index: 3;
-        }
-        
-        .label-tag {
-            background: var(--black);
-            padding: 6px 10px;
-            font-size: 9px;
-            font-weight: 700;
-            letter-spacing: 0.15em;
-            text-transform: uppercase;
-            border: 1px solid #333;
-        }
-        
-        .home-main-text {
-            margin-bottom: 30px;
-        }
-        
-        .home-title {
-            font-size: clamp(60px, 18vw, 100px);
-            margin-bottom: 10px;
-        }
-        
-        .home-script {
-            font-size: clamp(28px, 8vw, 48px);
-            color: var(--volt);
-            transform: rotate(-3deg);
-            margin-left: 20px;
-            margin-top: -15px;
-        }
-        
-        .home-upload-area {
-            background: var(--gray-dark);
-            border: 2px dashed #333;
-            border-radius: 16px;
-            padding: 40px 20px;
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        
-        .upload-icon {
-            font-size: 48px;
-            margin-bottom: 16px;
-            filter: grayscale(1);
-        }
-        
-        .upload-text {
-            font-size: 12px;
-            color: var(--gray);
-            margin-bottom: 20px;
-            line-height: 1.6;
-        }
-        
-        .upload-btns {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        
-        .btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            padding: 18px 24px;
-            border: none;
-            font-family: 'Anton', sans-serif;
-            font-size: 14px;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .btn-primary {
-            background: var(--white);
-            color: var(--black);
-        }
-        
-        .btn-primary:active {
-            transform: scale(0.98);
-        }
-        
-        .btn-outline {
-            background: transparent;
-            color: var(--white);
-            border: 2px solid #333;
-        }
-        
-        .btn-volt {
-            background: var(--volt);
-            color: var(--black);
-        }
-        
-        .btn-blue {
-            background: var(--blue);
-            color: var(--white);
-        }
-        
+        .home-bg span { display: block; }
+        .home-content { position: relative; z-index: 2; flex: 1; display: flex; flex-direction: column; justify-content: flex-end; padding: 24px; }
+        .home-labels { position: absolute; top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; z-index: 3; }
+        .label { font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--black); opacity: 0.5; }
+        .home-upload { background: var(--white); border: 2px dashed #ddd; padding: 40px 24px; text-align: center; margin-bottom: 20px; }
+        .upload-icon { font-size: 40px; margin-bottom: 12px; }
+        .upload-text { font-size: 12px; color: var(--gray); margin-bottom: 20px; line-height: 1.5; }
+        .btn { display: block; width: 100%; padding: 18px; border: none; font-family: 'Anton', sans-serif; font-size: 14px; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; margin-bottom: 10px; }
+        .btn-black { background: var(--black); color: var(--white); }
+        .btn-outline { background: transparent; color: var(--black); border: 2px solid var(--black); }
+        .btn-blue { background: var(--blue); color: var(--white); }
+        .btn-volt { background: var(--volt); color: var(--black); }
         input[type="file"] { display: none; }
         
         /* ===== PREVIEW SCREEN ===== */
-        .preview-screen {
-            background: var(--black);
-            position: relative;
+        .preview { background: var(--cream); }
+        .preview-bg {
+            position: absolute; top: 0; left: -10%; right: -10%;
+            font-family: 'Anton', sans-serif; font-size: 18vw; line-height: 0.9;
+            color: var(--black); opacity: 0.08; pointer-events: none; z-index: 1;
         }
-        
-        .preview-image-wrap {
-            position: relative;
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
+        .preview-photo-wrap {
+            position: relative; z-index: 2; flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px;
         }
-        
-        .preview-image {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            filter: grayscale(100%) contrast(1.1);
+        .preview-photo-container {
+            position: relative; width: 75%; max-width: 280px; aspect-ratio: 3/4; background: var(--white); box-shadow: 0 20px 60px rgba(0,0,0,0.15);
         }
-        
-        .preview-overlay {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 20px;
-            background: linear-gradient(transparent 40%, rgba(10,10,10,0.9) 100%);
-        }
-        
-        .preview-top-labels {
-            display: flex;
-            justify-content: space-between;
-        }
-        
+        .preview-photo { width: 100%; height: 100%; object-fit: cover; filter: grayscale(100%) contrast(1.1); }
+        .preview-id-strip { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; justify-content: space-between; }
+        .preview-id-strip span { font-family: 'Space Mono', monospace; font-size: 8px; letter-spacing: 0.1em; text-transform: uppercase; background: var(--white); padding: 4px 8px; }
         .preview-script {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) rotate(-5deg);
-            font-size: clamp(36px, 12vw, 60px);
-            color: var(--volt);
-            text-shadow: 2px 2px 0 var(--black);
-            white-space: nowrap;
+            position: absolute; bottom: -30px; right: -20px;
+            font-family: 'Caveat', cursive; font-size: 32px; color: var(--volt);
+            transform: rotate(-5deg); text-shadow: 2px 2px 0 var(--black);
         }
-        
-        .preview-bottom {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        
         .preview-headline {
-            font-size: clamp(36px, 10vw, 56px);
+            position: absolute; bottom: 60px; left: 0; right: 0;
+            font-family: 'Anton', sans-serif; font-size: 14vw; text-align: center;
+            color: var(--black); text-transform: uppercase; line-height: 0.9;
         }
+        .preview-actions { position: relative; z-index: 2; padding: 20px 24px 40px; }
         
         /* ===== LOADING SCREEN ===== */
-        .loading-screen {
-            background: var(--black);
-            position: relative;
-            justify-content: center;
-            align-items: center;
+        .loading { background: var(--black); justify-content: center; align-items: center; }
+        .loading-text {
+            font-family: 'Anton', sans-serif; font-size: 20vw; color: var(--white);
+            text-transform: uppercase; animation: pulse 1.2s ease-in-out infinite;
         }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        .loading-bars { display: flex; gap: 6px; margin-top: 30px; }
+        .loading-bar { height: 4px; background: var(--volt); animation: glitch 0.6s ease-in-out infinite; }
+        .loading-bar:nth-child(1) { width: 40px; }
+        .loading-bar:nth-child(2) { width: 60px; animation-delay: 0.1s; }
+        .loading-bar:nth-child(3) { width: 30px; animation-delay: 0.2s; }
+        .loading-bar:nth-child(4) { width: 50px; animation-delay: 0.3s; }
+        @keyframes glitch { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; transform: translateX(2px); } }
+        .loading-script { font-family: 'Caveat', cursive; font-size: 28px; color: var(--volt); margin-top: 20px; }
+        .loading-step { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--gray); margin-top: 20px; letter-spacing: 0.2em; text-transform: uppercase; }
         
-        .loading-text-bg {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-family: 'Anton', sans-serif;
-            font-size: clamp(80px, 30vw, 200px);
-            color: var(--gray-dark);
-            text-transform: uppercase;
-            white-space: nowrap;
-            z-index: 1;
-        }
-        
-        .loading-content {
-            position: relative;
-            z-index: 2;
-            text-align: center;
-            padding: 20px;
-        }
-        
-        .loading-main {
-            font-size: clamp(48px, 15vw, 80px);
-            margin-bottom: 20px;
-            animation: pulse 1.5s ease-in-out infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        
-        .loading-bars {
-            display: flex;
-            gap: 4px;
-            justify-content: center;
-            margin-bottom: 30px;
-        }
-        
-        .loading-bar {
-            width: 40px;
-            height: 4px;
-            background: var(--volt);
-            animation: glitch 0.8s ease-in-out infinite;
-        }
-        
-        .loading-bar:nth-child(2) { animation-delay: 0.1s; width: 60px; }
-        .loading-bar:nth-child(3) { animation-delay: 0.2s; width: 30px; }
-        .loading-bar:nth-child(4) { animation-delay: 0.3s; width: 50px; }
-        .loading-bar:nth-child(5) { animation-delay: 0.4s; width: 35px; }
-        
-        @keyframes glitch {
-            0%, 100% { opacity: 1; transform: translateX(0); }
-            25% { opacity: 0.5; transform: translateX(-2px); }
-            75% { opacity: 0.8; transform: translateX(2px); }
-        }
-        
-        .loading-script {
-            font-size: 24px;
-            color: var(--volt);
-            transform: rotate(-3deg);
-        }
-        
-        .loading-step {
-            margin-top: 30px;
-            font-size: 11px;
-            color: var(--gray);
-            letter-spacing: 0.2em;
-            text-transform: uppercase;
-        }
-        
-        /* ===== RESULTS SCREEN ===== */
-        .results-screen {
-            background: var(--black);
-            padding: 0;
-        }
-        
+        /* ===== RESULTS CAROUSEL ===== */
+        .results { background: var(--cream); overflow: hidden; }
         .results-header {
-            padding: 20px;
+            position: absolute; top: 0; left: 0; right: 0; z-index: 100;
+            padding: 20px; display: flex; justify-content: space-between; align-items: flex-start;
+        }
+        .results-title { font-family: 'Anton', sans-serif; font-size: 8vw; color: var(--black); line-height: 0.9; }
+        .results-title span { color: var(--blue); }
+        .results-nav { display: flex; gap: 8px; margin-top: 10px; }
+        .nav-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--black); opacity: 0.2; cursor: pointer; }
+        .nav-dot.active { opacity: 1; }
+        
+        .carousel { display: flex; height: 100%; transition: transform 0.4s ease; }
+        .slide { min-width: 100vw; height: 100vh; position: relative; display: flex; flex-direction: column; }
+        
+        /* Slide backgrounds per tier */
+        .slide-clean { background: var(--cream); }
+        .slide-trending { background: linear-gradient(to bottom, #E8E0D5 0%, #D4CFC5 100%); }
+        .slide-bold { background: var(--black); color: var(--white); }
+        
+        .slide-photo {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 70%; max-width: 300px; aspect-ratio: 3/4;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.3); z-index: 2;
+        }
+        .slide-photo img { width: 100%; height: 100%; object-fit: cover; }
+        
+        .slide-tier {
+            position: absolute; top: 12%; left: 0; right: 0;
+            font-family: 'Anton', sans-serif; font-size: 28vw; text-align: center;
+            line-height: 0.8; z-index: 1; pointer-events: none;
+        }
+        .slide-clean .slide-tier { color: var(--black); }
+        .slide-trending .slide-tier { color: var(--volt); text-shadow: 3px 3px 0 var(--black); }
+        .slide-bold .slide-tier { color: var(--blue); }
+        
+        /* Wavy stamp badge */
+        .stamp {
+            position: absolute; bottom: 25%; left: 50%; transform: translateX(-50%) rotate(-8deg);
+            width: 100px; height: 100px; z-index: 10;
+        }
+        .stamp svg { width: 100%; height: 100%; }
+        .stamp-text {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             text-align: center;
-            border-bottom: 1px solid #222;
         }
+        .stamp-pct { font-family: 'Anton', sans-serif; font-size: 24px; display: block; }
+        .stamp-label { font-family: 'Space Mono', monospace; font-size: 8px; letter-spacing: 0.1em; }
+        .slide-clean .stamp-pct, .slide-trending .stamp-pct { color: var(--blue); }
+        .slide-bold .stamp-pct { color: var(--volt); }
         
-        .results-title {
-            font-size: clamp(40px, 12vw, 64px);
-            margin-bottom: 5px;
+        .slide-script {
+            position: absolute; bottom: 18%; right: 15%;
+            font-family: 'Caveat', cursive; font-size: 24px; transform: rotate(-5deg); z-index: 10;
         }
+        .slide-clean .slide-script, .slide-trending .slide-script { color: var(--blue); }
+        .slide-bold .slide-script { color: var(--volt); }
         
-        .results-script {
-            font-size: 20px;
-            color: var(--volt);
-            transform: rotate(-2deg);
+        .slide-actions {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            padding: 20px 24px 40px; z-index: 20;
         }
+        .slide-bold .slide-actions .btn-black { background: var(--white); color: var(--black); }
         
-        .results-cards {
-            padding: 20px;
+        /* ===== CUT CARD SCREEN ===== */
+        .cutcard { background: var(--cream); overflow-y: auto; }
+        .cutcard-header {
+            position: sticky; top: 0; background: var(--cream);
+            padding: 20px; display: flex; align-items: center; gap: 15px;
+            border-bottom: 1px solid #ddd; z-index: 10;
         }
+        .cutcard-back { font-size: 24px; cursor: pointer; }
+        .cutcard-title { font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; }
+        .cutcard-photo { width: 100%; aspect-ratio: 4/3; object-fit: cover; filter: grayscale(100%); }
+        .cutcard-script {
+            position: absolute; top: 50%; right: 20px; transform: rotate(-10deg);
+            font-family: 'Caveat', cursive; font-size: 20px; color: var(--volt);
+        }
+        .cutcard-badge {
+            position: absolute; bottom: 20px; right: 20px;
+            background: var(--blue); color: var(--white);
+            padding: 8px 16px; font-family: 'Anton', sans-serif; font-size: 12px;
+            text-transform: uppercase; transform: rotate(3deg);
+        }
+        .cutcard-content { padding: 24px; }
+        .cutcard-section { margin-bottom: 24px; border-bottom: 1px solid #ddd; padding-bottom: 20px; }
+        .cutcard-section:last-child { border-bottom: none; }
+        .cutcard-label {
+            display: inline-block; background: var(--blue); color: var(--white);
+            font-family: 'Space Mono', monospace; font-size: 9px; padding: 4px 8px;
+            letter-spacing: 0.1em; margin-bottom: 8px;
+        }
+        .cutcard-value { font-family: 'Anton', sans-serif; font-size: 28px; text-transform: uppercase; margin-bottom: 4px; }
+        .cutcard-desc { font-size: 13px; color: var(--gray); line-height: 1.5; }
+        .cutcard-actions { padding: 20px 24px 40px; }
         
-        /* Look Card - Editorial Style */
-        .look-card {
-            position: relative;
-            margin-bottom: 30px;
-            background: var(--gray-dark);
+        /* ===== LOCKED SCREEN ===== */
+        .locked { background: var(--cream); }
+        .locked-photo {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 30%;
             overflow: hidden;
         }
-        
-        .look-card.best-match {
-            border: 3px solid var(--volt);
+        .locked-photo img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(100%) contrast(1.1); }
+        .locked-headline {
+            position: absolute; top: 5%; left: 0; right: 0;
+            font-family: 'Anton', sans-serif; font-size: 25vw; text-align: center;
+            color: var(--black); line-height: 0.85; z-index: 2;
         }
-        
-        .look-card.locked {
-            border: 3px solid var(--blue);
-        }
-        
-        .best-match-strip {
-            background: var(--volt);
-            color: var(--black);
-            text-align: center;
-            padding: 8px;
-            font-family: 'Anton', sans-serif;
-            font-size: 12px;
-            letter-spacing: 0.15em;
-        }
-        
-        .locked-strip {
-            background: var(--blue);
-            color: var(--white);
-            text-align: center;
-            padding: 8px;
-            font-family: 'Anton', sans-serif;
-            font-size: 12px;
-            letter-spacing: 0.15em;
-        }
-        
-        .look-image-container {
-            position: relative;
-            aspect-ratio: 3/4;
-            overflow: hidden;
-        }
-        
-        .look-image {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        
-        .look-image-overlay {
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(transparent 50%, rgba(10,10,10,0.95) 100%);
-        }
-        
-        .look-tier-badge {
-            position: absolute;
-            top: 15px;
-            left: 15px;
-            padding: 6px 12px;
-            font-family: 'Anton', sans-serif;
-            font-size: 11px;
-            letter-spacing: 0.1em;
-        }
-        
-        .tier-clean { background: var(--white); color: var(--black); }
-        .tier-trending { background: var(--volt); color: var(--black); }
-        .tier-bold { background: var(--blue); color: var(--white); }
-        
-        .look-match-stamp {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            width: 70px;
-            height: 70px;
-            border: 3px solid var(--volt);
-            border-radius: 50%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            background: rgba(10,10,10,0.8);
-            transform: rotate(5deg);
-        }
-        
-        .stamp-pct {
-            font-family: 'Anton', sans-serif;
-            font-size: 22px;
-            line-height: 1;
-        }
-        
-        .stamp-label {
-            font-size: 8px;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            color: var(--gray);
-        }
-        
-        .look-info {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            padding: 20px;
-        }
-        
-        .look-name {
-            font-family: 'Anton', sans-serif;
-            font-size: clamp(24px, 7vw, 32px);
-            text-transform: uppercase;
-            margin-bottom: 5px;
-        }
-        
-        .look-vibe {
-            font-size: 12px;
-            color: var(--gray);
-            margin-bottom: 15px;
-        }
-        
-        .look-meta {
-            display: flex;
-            gap: 15px;
-            font-size: 10px;
-            color: var(--gray);
-            margin-bottom: 15px;
-        }
-        
-        .achievability {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 14px;
-            font-size: 11px;
-            font-weight: 600;
-        }
-        
-        .ach-ready { background: rgba(0, 200, 150, 0.2); color: #00c896; }
-        .ach-grow { background: rgba(212, 255, 0, 0.2); color: var(--volt); }
-        .ach-dream { background: rgba(0, 71, 255, 0.2); color: var(--blue); }
-        
-        /* Cut Card Expandable */
-        .cut-card-toggle {
-            width: 100%;
-            padding: 15px 20px;
-            background: var(--black);
-            border: none;
-            border-top: 1px solid #222;
-            color: var(--white);
-            font-family: 'Space Mono', monospace;
-            font-size: 10px;
-            letter-spacing: 0.15em;
-            text-transform: uppercase;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-        }
-        
-        .cut-card-toggle .arrow {
-            transition: transform 0.2s;
-        }
-        
-        .cut-card-toggle.open .arrow {
-            transform: rotate(180deg);
-        }
-        
-        .cut-card {
-            display: none;
-            background: var(--black);
-            padding: 20px;
-            border-top: 1px solid #222;
-        }
-        
-        .cut-card.open {
-            display: block;
-            animation: slideDown 0.2s ease;
-        }
-        
-        @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .cut-card-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid #1a1a1a;
-            font-size: 11px;
-        }
-        
-        .cut-card-row:last-child { border-bottom: none; }
-        
-        .cut-card-label {
-            color: var(--gray);
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            font-family: 'Space Mono', monospace;
-            font-size: 9px;
-        }
-        
-        .cut-card-value {
-            text-align: right;
-            max-width: 60%;
-            line-height: 1.4;
-        }
-        
-        /* Action Buttons */
-        .look-actions {
-            display: flex;
-            gap: 10px;
-            padding: 15px 20px;
-            background: var(--gray-dark);
-        }
-        
-        .look-actions .btn {
-            flex: 1;
-            padding: 14px;
-            font-size: 11px;
-        }
-        
-        .locked-overlay {
-            position: absolute;
-            inset: 0;
-            background: rgba(0, 71, 255, 0.3);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 10;
-        }
-        
         .locked-stamp {
-            background: var(--blue);
-            padding: 15px 30px;
-            font-family: 'Anton', sans-serif;
-            font-size: 20px;
-            letter-spacing: 0.2em;
-            transform: rotate(-10deg);
-            border: 3px solid var(--white);
+            position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg);
+            border: 4px solid var(--blue); border-radius: 50%; width: 120px; height: 120px;
+            display: flex; align-items: center; justify-content: center; z-index: 10;
         }
+        .locked-stamp-inner {
+            font-family: 'Anton', sans-serif; font-size: 18px; color: var(--blue);
+            text-transform: uppercase; letter-spacing: 0.1em;
+        }
+        .locked-script {
+            position: absolute; top: 55%; left: 50%; transform: translateX(-50%) rotate(-5deg);
+            font-family: 'Caveat', cursive; font-size: 36px; color: var(--volt);
+            text-shadow: 2px 2px 0 var(--black); z-index: 10;
+        }
+        .locked-actions {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            padding: 20px 24px 40px; background: var(--black); z-index: 20;
+        }
+        .locked-actions .btn { margin-bottom: 12px; }
+        .locked-actions .btn:last-child { margin-bottom: 0; }
         
-        /* Analysis Card */
-        .analysis-card {
-            background: var(--gray-dark);
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-        
-        .analysis-title {
-            font-family: 'Space Mono', monospace;
-            font-size: 9px;
-            color: var(--gray);
-            letter-spacing: 0.2em;
-            text-transform: uppercase;
-            margin-bottom: 15px;
-        }
-        
-        .analysis-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-        }
-        
-        .analysis-item {
-            background: var(--black);
-            padding: 12px;
-        }
-        
-        .analysis-label {
-            font-size: 9px;
-            color: var(--gray);
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            margin-bottom: 4px;
-        }
-        
-        .analysis-value {
-            font-family: 'Anton', sans-serif;
-            font-size: 16px;
-            text-transform: uppercase;
-        }
+        /* ===== ERROR ===== */
+        .error { background: var(--black); justify-content: center; align-items: center; padding: 40px; text-align: center; }
+        .error-icon { font-size: 60px; margin-bottom: 20px; }
+        .error-text { color: #ff6b6b; margin-bottom: 30px; font-size: 14px; }
         
         /* Share Modal */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.95);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-        
-        .modal-overlay.active { display: flex; }
-        
-        .modal {
-            background: var(--gray-dark);
-            width: 100%;
-            max-width: 360px;
-        }
-        
-        .modal-header {
-            padding: 20px;
-            border-bottom: 1px solid #333;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .modal-title {
-            font-family: 'Anton', sans-serif;
-            font-size: 18px;
-            letter-spacing: 0.05em;
-        }
-        
-        .modal-close {
-            background: none;
-            border: none;
-            color: var(--gray);
-            font-size: 28px;
-            cursor: pointer;
-            line-height: 1;
-        }
-        
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
+        .modal.active { display: flex; }
+        .modal-box { background: var(--white); width: 100%; max-width: 340px; }
+        .modal-header { padding: 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; }
+        .modal-title { font-family: 'Anton', sans-serif; font-size: 16px; }
+        .modal-close { font-size: 24px; cursor: pointer; }
         .modal-body { padding: 20px; }
-        
-        .share-btn {
-            width: 100%;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            padding: 18px;
-            background: var(--black);
-            border: none;
-            color: var(--white);
-            font-size: 14px;
-            cursor: pointer;
-            margin-bottom: 10px;
-            transition: background 0.2s;
-        }
-        
-        .share-btn:hover { background: #111; }
+        .share-btn { display: flex; align-items: center; gap: 12px; width: 100%; padding: 16px; background: #f5f5f5; border: none; font-size: 14px; cursor: pointer; margin-bottom: 10px; }
         .share-btn:last-child { margin-bottom: 0; }
-        
-        .share-icon { font-size: 20px; }
-        
-        /* Error Screen */
-        .error-screen {
-            justify-content: center;
-            align-items: center;
-            padding: 40px;
-            text-align: center;
-        }
-        
-        .error-icon { font-size: 64px; margin-bottom: 20px; }
-        .error-text { color: #ff6b6b; margin-bottom: 30px; }
-        
-        /* Footer */
-        .footer {
-            padding: 30px 20px;
-            text-align: center;
-            border-top: 1px solid #222;
-        }
-        
-        .footer-text {
-            font-family: 'Space Mono', monospace;
-            font-size: 9px;
-            color: #333;
-            letter-spacing: 0.2em;
-        }
-        
-        /* Back button */
-        .back-btn {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            z-index: 100;
-            background: var(--black);
-            border: 1px solid #333;
-            color: var(--white);
-            width: 44px;
-            height: 44px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            cursor: pointer;
-        }
     </style>
 </head>
 <body>
-    <div class="container">
-        
-        <!-- ===== HOME SCREEN ===== -->
-        <div class="screen home-screen active" id="homeScreen">
-            <div class="home-bg-text">
-                STYLE<br>LOCK
-            </div>
-            
-            <div class="home-labels">
-                <span class="label-tag">IDENTITY</span>
-                <span class="label-tag">BETA 1.0</span>
-            </div>
-            
-            <div class="home-content">
-                <div class="home-main-text">
-                    <h1 class="headline home-title">REBIRTH</h1>
-                    <p class="script home-script">future me</p>
-                </div>
-                
-                <div class="home-upload-area">
-                    <div class="upload-icon">📸</div>
-                    <p class="upload-text">Front-facing photo<br>Good lighting • Face visible</p>
-                    <div class="upload-btns">
-                        <label class="btn btn-primary">
-                            TAKE SELFIE
-                            <input type="file" accept="image/*" capture="user" id="cameraInput">
-                        </label>
-                        <label class="btn btn-outline">
-                            CHOOSE PHOTO
-                            <input type="file" accept="image/*" id="galleryInput">
-                        </label>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- ===== PREVIEW SCREEN ===== -->
-        <div class="screen preview-screen" id="previewScreen">
-            <div class="preview-image-wrap">
-                <img id="previewImage" class="preview-image" src="" alt="">
-                <div class="preview-overlay">
-                    <div class="preview-top-labels">
-                        <span class="label-tag">DRAFT 01</span>
-                        <span class="label-tag">SELF ID</span>
-                    </div>
-                    <p class="script preview-script">this is you</p>
-                    <div class="preview-bottom">
-                        <h2 class="headline preview-headline">ANALYZE<br>THIS FACE</h2>
-                        <button class="btn btn-volt" onclick="generate()">BEGIN TRANSFORMATION →</button>
-                        <button class="btn btn-outline" onclick="reset()">← RETAKE</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- ===== LOADING SCREEN ===== -->
-        <div class="screen loading-screen" id="loadingScreen">
-            <div class="loading-text-bg" id="loadingBgText">READING</div>
-            <div class="loading-content">
-                <h1 class="headline loading-main" id="loadingMain">READING</h1>
-                <div class="loading-bars">
-                    <div class="loading-bar"></div>
-                    <div class="loading-bar"></div>
-                    <div class="loading-bar"></div>
-                    <div class="loading-bar"></div>
-                    <div class="loading-bar"></div>
-                </div>
-                <p class="script loading-script">hold still</p>
-                <p class="loading-step" id="loadingStep">Analyzing features...</p>
-            </div>
-        </div>
-        
-        <!-- ===== ERROR SCREEN ===== -->
-        <div class="screen error-screen" id="errorScreen">
-            <div class="error-icon">⚠️</div>
-            <p class="error-text" id="errorText">Something went wrong</p>
-            <button class="btn btn-primary" onclick="reset()">TRY AGAIN</button>
-        </div>
-        
-        <!-- ===== RESULTS SCREEN ===== -->
-        <div class="screen results-screen" id="resultsScreen">
-            <div class="results-header">
-                <h1 class="headline results-title">3 FUTURES</h1>
-                <p class="script results-script">pick one</p>
-            </div>
-            
-            <div class="results-cards">
-                <div class="analysis-card" id="analysisCard">
-                    <div class="analysis-title">AI Face Reading</div>
-                    <div class="analysis-grid" id="analysisGrid"></div>
-                </div>
-                
-                <div id="lookCards"></div>
-            </div>
-            
-            <div class="footer">
-                <button class="btn btn-outline" style="width:100%" onclick="reset()">← START OVER</button>
-                <p class="footer-text" style="margin-top:20px">STYLELOCK AI • BETA</p>
-            </div>
-        </div>
-        
-    </div>
-    
-    <!-- Share Modal -->
-    <div class="modal-overlay" id="shareModal">
-        <div class="modal">
-            <div class="modal-header">
-                <span class="modal-title">SHARE THIS LOOK</span>
-                <button class="modal-close" onclick="closeShareModal()">×</button>
-            </div>
-            <div class="modal-body">
-                <button class="share-btn" onclick="shareToWhatsApp()">
-                    <span class="share-icon">💬</span>
-                    Share to WhatsApp
-                </button>
-                <button class="share-btn" onclick="downloadImage()">
-                    <span class="share-icon">💾</span>
-                    Save to Phone
-                </button>
-                <button class="share-btn" onclick="copyLink()">
-                    <span class="share-icon">🔗</span>
-                    Copy Link
-                </button>
-            </div>
+
+<!-- HOME -->
+<div class="screen home active" id="homeScreen">
+    <div class="home-bg"><span>STYLE</span><span>LOCK</span><span>STYLE</span><span>LOCK</span></div>
+    <div class="home-labels"><span class="label">Identity</span><span class="label">Beta 1.0</span></div>
+    <div class="home-content">
+        <div class="home-upload">
+            <div class="upload-icon">📸</div>
+            <p class="upload-text">Front-facing photo<br>Good lighting • Face visible</p>
+            <label class="btn btn-black">Take Selfie<input type="file" accept="image/*" capture="user" id="cameraInput"></label>
+            <label class="btn btn-outline">Choose Photo<input type="file" accept="image/*" id="galleryInput"></label>
         </div>
     </div>
+</div>
+
+<!-- PREVIEW -->
+<div class="screen preview" id="previewScreen">
+    <div class="preview-bg">DRAFT<br>READY<br>SELF<br>ID</div>
+    <div class="preview-photo-wrap">
+        <div class="preview-photo-container">
+            <div class="preview-id-strip"><span>Self ID</span><span>Draft 01</span></div>
+            <img id="previewImg" class="preview-photo" src="" alt="">
+            <span class="preview-script">this is you</span>
+        </div>
+    </div>
+    <div class="preview-headline">CHECK</div>
+    <div class="preview-actions">
+        <button class="btn btn-black" onclick="generate()">Analyze This Face</button>
+        <button class="btn btn-outline" onclick="goHome()">← Retake</button>
+    </div>
+</div>
+
+<!-- LOADING -->
+<div class="screen loading" id="loadingScreen">
+    <div class="loading-text" id="loadingText">READING</div>
+    <div class="loading-bars"><div class="loading-bar"></div><div class="loading-bar"></div><div class="loading-bar"></div><div class="loading-bar"></div></div>
+    <p class="loading-script">hold still</p>
+    <p class="loading-step" id="loadingStep">Analyzing features...</p>
+</div>
+
+<!-- ERROR -->
+<div class="screen error" id="errorScreen">
+    <div class="error-icon">⚠️</div>
+    <p class="error-text" id="errorText">Something went wrong</p>
+    <button class="btn btn-black" style="background:#fff;color:#000" onclick="goHome()">Try Again</button>
+</div>
+
+<!-- RESULTS CAROUSEL -->
+<div class="screen results" id="resultsScreen">
+    <div class="results-header">
+        <div>
+            <div class="results-title">YOUR <span>3</span><br>FUTURES</div>
+            <div class="results-nav" id="resultsNav"></div>
+        </div>
+        <button class="btn btn-outline" style="width:auto;padding:10px 16px;font-size:11px" onclick="goHome()">←</button>
+    </div>
+    <div class="carousel" id="carousel"></div>
+</div>
+
+<!-- CUT CARD -->
+<div class="screen cutcard" id="cutcardScreen">
+    <div class="cutcard-header">
+        <span class="cutcard-back" onclick="backToResults()">←</span>
+        <span class="cutcard-title">StyleLock Cut Card</span>
+    </div>
+    <div style="position:relative">
+        <img id="cutcardPhoto" class="cutcard-photo" src="" alt="">
+        <span class="cutcard-script">show this to the barber</span>
+        <span class="cutcard-badge" id="cutcardBadge">READY</span>
+    </div>
+    <div class="cutcard-content" id="cutcardContent"></div>
+    <div class="cutcard-actions">
+        <button class="btn btn-blue" id="cutcardLockBtn">Lock This Look</button>
+    </div>
+</div>
+
+<!-- LOCKED -->
+<div class="screen locked" id="lockedScreen">
+    <div class="locked-photo"><img id="lockedPhoto" src="" alt=""></div>
+    <div class="locked-headline">LOCKED</div>
+    <div class="locked-stamp"><span class="locked-stamp-inner">✓ LOCKED</span></div>
+    <span class="locked-script">this is it</span>
+    <div class="locked-actions">
+        <button class="btn btn-volt" onclick="showBarber()">Show Your Barber</button>
+        <button class="btn btn-outline" style="border-color:#fff;color:#fff" onclick="saveToPhone()">Save to Phone</button>
+        <button class="btn btn-outline" style="border-color:#444;color:#888" onclick="goHome()">Start Over</button>
+    </div>
+</div>
+
+<!-- SHARE MODAL -->
+<div class="modal" id="shareModal">
+    <div class="modal-box">
+        <div class="modal-header"><span class="modal-title">Share</span><span class="modal-close" onclick="closeModal()">×</span></div>
+        <div class="modal-body">
+            <button class="share-btn" onclick="shareWhatsApp()">💬 WhatsApp</button>
+            <button class="share-btn" onclick="saveToPhone()">💾 Save to Phone</button>
+            <button class="share-btn" onclick="copyLink()">🔗 Copy Link</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let imageBase64 = '';
+let results = null;
+let currentSlide = 0;
+let currentLookIdx = 0;
+
+function show(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+}
+
+function goHome() {
+    imageBase64 = '';
+    results = null;
+    currentSlide = 0;
+    document.getElementById('cameraInput').value = '';
+    document.getElementById('galleryInput').value = '';
+    show('homeScreen');
+}
+
+function handleImage(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+        imageBase64 = ev.target.result.split(',')[1];
+        document.getElementById('previewImg').src = ev.target.result;
+        show('previewScreen');
+    };
+    reader.readAsDataURL(file);
+}
+document.getElementById('cameraInput').addEventListener('change', handleImage);
+document.getElementById('galleryInput').addEventListener('change', handleImage);
+
+async function generate() {
+    show('loadingScreen');
+    const phases = [{t:'READING',s:'Analyzing face shape...'},{t:'READING',s:'Detecting hair texture...'},{t:'MATCHING',s:'Finding your looks...'},{t:'BUILDING',s:'Generating previews...'}];
+    let i = 0;
+    const iv = setInterval(() => {
+        i = (i + 1) % phases.length;
+        document.getElementById('loadingText').textContent = phases[i].t;
+        document.getElementById('loadingStep').textContent = phases[i].s;
+    }, 2500);
     
-    <script>
-        let imageBase64 = '';
-        let currentResults = null;
-        let lockedLookId = null;
-        let shareImageUrl = null;
-        
-        function showScreen(id) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-        }
-        
-        function handleImageSelect(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(ev) {
-                imageBase64 = ev.target.result.split(',')[1];
-                document.getElementById('previewImage').src = ev.target.result;
-                showScreen('previewScreen');
-            };
-            reader.readAsDataURL(file);
-        }
-        
-        document.getElementById('cameraInput').addEventListener('change', handleImageSelect);
-        document.getElementById('galleryInput').addEventListener('change', handleImageSelect);
-        
-        function reset() {
-            imageBase64 = '';
-            lockedLookId = null;
-            currentResults = null;
-            document.getElementById('cameraInput').value = '';
-            document.getElementById('galleryInput').value = '';
-            showScreen('homeScreen');
-        }
-        
-        async function generate() {
-            showScreen('loadingScreen');
-            
-            const phases = [
-                { main: 'READING', step: 'Analyzing face shape...' },
-                { main: 'READING', step: 'Detecting hair texture...' },
-                { main: 'MATCHING', step: 'Finding your looks...' },
-                { main: 'MATCHING', step: 'Generating previews...' },
-                { main: 'BUILDING', step: 'Almost there...' }
-            ];
-            
-            let i = 0;
-            const interval = setInterval(() => {
-                i = (i + 1) % phases.length;
-                document.getElementById('loadingMain').textContent = phases[i].main;
-                document.getElementById('loadingBgText').textContent = phases[i].main;
-                document.getElementById('loadingStep').textContent = phases[i].step;
-            }, 2500);
-            
-            try {
-                const resp = await fetch('/api/consult', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        image_base64: imageBase64,
-                        vibe_preference: 'balanced'
-                    })
-                });
-                
-                clearInterval(interval);
-                
-                const text = await resp.text();
-                let data;
-                try { data = JSON.parse(text); }
-                catch(e) { throw new Error('Invalid response'); }
-                
-                if (!resp.ok || !data.success) {
-                    throw new Error(data.detail || 'Generation failed');
-                }
-                
-                currentResults = data;
-                showResults(data);
-                
-            } catch(e) {
-                clearInterval(interval);
-                document.getElementById('errorText').textContent = e.message;
-                showScreen('errorScreen');
-            }
-        }
-        
-        function showResults(data) {
-            showScreen('resultsScreen');
-            
-            const a = data.analysis || {};
-            document.getElementById('analysisGrid').innerHTML = `
-                <div class="analysis-item">
-                    <div class="analysis-label">Face</div>
-                    <div class="analysis-value">${a.face_shape || '—'}</div>
-                </div>
-                <div class="analysis-item">
-                    <div class="analysis-label">Texture</div>
-                    <div class="analysis-value">${a.hair_texture || '—'}</div>
-                </div>
-                <div class="analysis-item">
-                    <div class="analysis-label">Density</div>
-                    <div class="analysis-value">${a.hair_density || '—'}</div>
-                </div>
-                <div class="analysis-item">
-                    <div class="analysis-label">Length</div>
-                    <div class="analysis-value">~${a.estimated_top_length_cm || '?'}cm</div>
-                </div>
-            `;
-            
-            const recs = data.recommendations || [];
-            let bestIdx = 0;
-            let bestScore = -999;
-            recs.forEach((look, idx) => {
-                let score = look.achievability === 'ready' ? 100 : 
-                            look.achievability === 'grow' ? (50 - (look.growth_weeks || 0)) : 0;
-                if (score > bestScore) { bestScore = score; bestIdx = idx; }
-            });
-            
-            let html = '';
-            recs.forEach((look, idx) => {
-                const isBest = idx === bestIdx;
-                const isLocked = look.id === lockedLookId;
-                const tier = (look.tier || 'trending').toLowerCase();
-                const ach = look.achievability || 'ready';
-                
-                let achText = ach === 'ready' ? '✓ READY NOW' : 
-                              ach === 'grow' ? `↑ ${look.growth_weeks || '?'} WEEKS` : '★ DREAM';
-                
-                const cardClass = isLocked ? 'look-card locked' : (isBest ? 'look-card best-match' : 'look-card');
-                const strip = isLocked ? '<div class="locked-strip">🔒 LOCKED</div>' : 
-                              (isBest ? '<div class="best-match-strip">⭐ BEST MATCH FOR YOUR HAIR</div>' : '');
-                
-                const preview = look.preview_url ? 
-                    `<img src="${look.preview_url}" class="look-image" alt="${look.name}">` : 
-                    `<div style="width:100%;height:100%;background:#1a1a1a;display:flex;align-items:center;justify-content:center;color:#444;font-size:12px;">Generating...</div>`;
-                
-                const cutCard = look.cut_card || {};
-                const lookId = look.id || idx;
-                
-                html += `
-                <div class="${cardClass}" id="card-${lookId}">
-                    ${strip}
-                    <div class="look-image-container">
-                        ${preview}
-                        <div class="look-image-overlay"></div>
-                        ${isLocked ? '<div class="locked-overlay"><div class="locked-stamp">LOCKED</div></div>' : ''}
-                        <span class="look-tier-badge tier-${tier}">${look.tier || 'TRENDING'}</span>
-                        <div class="look-match-stamp">
-                            <span class="stamp-pct">${look.match_percentage || '?'}%</span>
-                            <span class="stamp-label">match</span>
-                        </div>
-                        <div class="look-info">
-                            <h3 class="look-name">${look.name || 'Hairstyle'}</h3>
-                            <p class="look-vibe">${look.vibe || ''}</p>
-                            <div class="look-meta">
-                                <span>🔧 ${look.maintenance || 'Medium'}</span>
-                                <span>⏱ ${look.daily_time || '3-5 min'}</span>
-                            </div>
-                            <span class="achievability ach-${ach}">${achText}</span>
-                        </div>
-                    </div>
-                    <button class="cut-card-toggle" onclick="toggleCutCard('${lookId}')">
-                        <span>VIEW CUT CARD</span>
-                        <span class="arrow">▼</span>
-                    </button>
-                    <div class="cut-card" id="cutcard-${lookId}">
-                        <div class="cut-card-row"><span class="cut-card-label">Fade</span><span class="cut-card-value">${cutCard.fade || '—'}</span></div>
-                        <div class="cut-card-row"><span class="cut-card-label">Top Length</span><span class="cut-card-value">${cutCard.top_length || '—'}</span></div>
-                        <div class="cut-card-row"><span class="cut-card-label">Texture</span><span class="cut-card-value">${cutCard.texture_method || '—'}</span></div>
-                        <div class="cut-card-row"><span class="cut-card-label">Fringe</span><span class="cut-card-value">${cutCard.fringe || '—'}</span></div>
-                        <div class="cut-card-row"><span class="cut-card-label">Styling</span><span class="cut-card-value">${cutCard.styling || '—'}</span></div>
-                        <div class="cut-card-row"><span class="cut-card-label">Products</span><span class="cut-card-value">${cutCard.products || '—'}</span></div>
-                        <div class="cut-card-row"><span class="cut-card-label">Beard</span><span class="cut-card-value">${cutCard.beard_pairing || '—'}</span></div>
-                    </div>
-                    <div class="look-actions">
-                        ${isLocked ? 
-                            `<button class="btn btn-outline" onclick="openShare('${look.preview_url || ''}')">📤 SHARE</button>` :
-                            `<button class="btn btn-blue" onclick="lockLook('${lookId}')">🔒 LOCK THIS</button>
-                             <button class="btn btn-outline" onclick="openShare('${look.preview_url || ''}')">📤</button>`
-                        }
-                    </div>
-                </div>`;
-            });
-            
-            document.getElementById('lookCards').innerHTML = html;
-        }
-        
-        function toggleCutCard(id) {
-            const card = document.getElementById('cutcard-' + id);
-            const toggle = card.previousElementSibling;
-            card.classList.toggle('open');
-            toggle.classList.toggle('open');
-        }
-        
-        function lockLook(id) {
-            lockedLookId = id;
-            if (currentResults) showResults(currentResults);
-            setTimeout(() => {
-                document.getElementById('card-' + id)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 100);
-        }
-        
-        function openShare(url) {
-            shareImageUrl = url;
-            document.getElementById('shareModal').classList.add('active');
-        }
-        
-        function closeShareModal() {
-            document.getElementById('shareModal').classList.remove('active');
-        }
-        
-        function shareToWhatsApp() {
-            const text = encodeURIComponent('Check out my new look from StyleLock! 💇‍♂️');
-            const url = shareImageUrl ? encodeURIComponent(shareImageUrl) : '';
-            window.open(`https://wa.me/?text=${text}%20${url}`, '_blank');
-            closeShareModal();
-        }
-        
-        function downloadImage() {
-            if (shareImageUrl) {
-                const a = document.createElement('a');
-                a.href = shareImageUrl;
-                a.download = 'stylelock-look.jpg';
-                a.target = '_blank';
-                a.click();
-            }
-            closeShareModal();
-        }
-        
-        function copyLink() {
-            if (shareImageUrl) {
-                navigator.clipboard.writeText(shareImageUrl).then(() => alert('Link copied!'));
-            }
-            closeShareModal();
-        }
-        
-        document.getElementById('shareModal').addEventListener('click', function(e) {
-            if (e.target === this) closeShareModal();
+    try {
+        const resp = await fetch('/api/consult', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({image_base64: imageBase64, vibe_preference: 'balanced'})
         });
-    </script>
+        clearInterval(iv);
+        const data = await resp.json();
+        if (!resp.ok || !data.success) throw new Error(data.detail || 'Failed');
+        results = data;
+        renderResults();
+    } catch(e) {
+        clearInterval(iv);
+        document.getElementById('errorText').textContent = e.message;
+        show('errorScreen');
+    }
+}
+
+function renderResults() {
+    const recs = results.recommendations || [];
+    const nav = document.getElementById('resultsNav');
+    const carousel = document.getElementById('carousel');
+    
+    nav.innerHTML = recs.map((_, i) => `<div class="nav-dot ${i===0?'active':''}" onclick="goSlide(${i})"></div>`).join('');
+    
+    carousel.innerHTML = recs.map((look, i) => {
+        const tier = (look.tier || 'TRENDING').toUpperCase();
+        const tierClass = tier.toLowerCase();
+        const scripts = ['not bad', 'pick one', 'this could be you'];
+        const ach = look.achievability === 'ready' ? 'READY' : look.achievability === 'grow' ? `${look.growth_weeks}W GROW` : 'DREAM';
+        
+        return `
+        <div class="slide slide-${tierClass}">
+            <div class="slide-tier">${tier}</div>
+            <div class="slide-photo">
+                ${look.preview_url ? `<img src="${look.preview_url}" alt="${look.name}">` : '<div style="width:100%;height:100%;background:#ddd;display:flex;align-items:center;justify-content:center;font-size:12px;color:#888">Generating...</div>'}
+            </div>
+            <div class="stamp">
+                <svg viewBox="0 0 100 100"><path d="M50 2 C55 8, 62 5, 68 8 C74 11, 78 6, 85 12 C92 18, 97 15, 98 25 C99 35, 95 40, 98 50 C101 60, 96 65, 92 72 C88 79, 93 85, 85 90 C77 95, 72 92, 65 95 C58 98, 52 95, 45 98 C38 101, 32 97, 25 92 C18 87, 12 91, 8 82 C4 73, 8 67, 5 58 C2 49, 5 42, 3 33 C1 24, 6 18, 12 12 C18 6, 25 10, 32 5 C39 0, 45 4, 50 2 Z" fill="none" stroke="${tier==='BOLD'?'#D4FF00':'#0047FF'}" stroke-width="2"/>
+                </svg>
+                <div class="stamp-text"><span class="stamp-pct">${look.match_percentage}%</span><span class="stamp-label">MATCH</span></div>
+            </div>
+            <span class="slide-script">${scripts[i] || 'pick one'}</span>
+            <div class="slide-actions">
+                <button class="btn btn-black" onclick="viewCutCard(${i})">View Cut Card</button>
+                <button class="btn btn-outline" ${tier==='BOLD'?'style="border-color:#fff;color:#fff"':''} onclick="lockLook(${i})">Lock This Look</button>
+            </div>
+        </div>`;
+    }).join('');
+    
+    show('resultsScreen');
+}
+
+function goSlide(i) {
+    currentSlide = i;
+    document.getElementById('carousel').style.transform = `translateX(-${i * 100}vw)`;
+    document.querySelectorAll('.nav-dot').forEach((d, idx) => d.classList.toggle('active', idx === i));
+}
+
+function viewCutCard(i) {
+    currentLookIdx = i;
+    const look = results.recommendations[i];
+    const cc = look.cut_card || {};
+    
+    document.getElementById('cutcardPhoto').src = look.preview_url || '';
+    document.getElementById('cutcardBadge').textContent = look.achievability === 'ready' ? 'READY' : look.achievability === 'grow' ? 'GROW' : 'DREAM';
+    
+    const sections = [
+        {label: 'FADE', key: 'fade'},
+        {label: 'TOP', key: 'top_length'},
+        {label: 'FRINGE', key: 'fringe'},
+        {label: 'STYLING', key: 'styling'},
+        {label: 'PRODUCTS', key: 'products'},
+        {label: 'AVOID', key: 'avoid'}
+    ];
+    
+    document.getElementById('cutcardContent').innerHTML = sections.map(s => `
+        <div class="cutcard-section">
+            <span class="cutcard-label">${s.label}</span>
+            <div class="cutcard-value">${s.label}</div>
+            <p class="cutcard-desc">${cc[s.key] || '—'}</p>
+        </div>
+    `).join('');
+    
+    document.getElementById('cutcardLockBtn').onclick = () => lockLook(i);
+    show('cutcardScreen');
+}
+
+function backToResults() {
+    show('resultsScreen');
+}
+
+function lockLook(i) {
+    currentLookIdx = i;
+    const look = results.recommendations[i];
+    document.getElementById('lockedPhoto').src = look.preview_url || '';
+    show('lockedScreen');
+}
+
+function showBarber() {
+    show('cutcardScreen');
+}
+
+function saveToPhone() {
+    const look = results.recommendations[currentLookIdx];
+    if (look && look.preview_url) {
+        const a = document.createElement('a');
+        a.href = look.preview_url;
+        a.download = 'stylelock-look.jpg';
+        a.target = '_blank';
+        a.click();
+    }
+}
+
+function shareWhatsApp() {
+    const look = results.recommendations[currentLookIdx];
+    const url = look ? encodeURIComponent(look.preview_url || '') : '';
+    window.open(`https://wa.me/?text=Check%20out%20my%20new%20look%20from%20StyleLock!%20${url}`, '_blank');
+    closeModal();
+}
+
+function copyLink() {
+    const look = results.recommendations[currentLookIdx];
+    if (look && look.preview_url) {
+        navigator.clipboard.writeText(look.preview_url).then(() => alert('Link copied!'));
+    }
+    closeModal();
+}
+
+function closeModal() { document.getElementById('shareModal').classList.remove('active'); }
+document.getElementById('shareModal').onclick = e => { if (e.target.id === 'shareModal') closeModal(); };
+
+// Swipe support
+let touchStartX = 0;
+document.getElementById('resultsScreen').addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
+document.getElementById('resultsScreen').addEventListener('touchend', e => {
+    const diff = touchStartX - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 50) {
+        if (diff > 0 && currentSlide < 2) goSlide(currentSlide + 1);
+        else if (diff < 0 && currentSlide > 0) goSlide(currentSlide - 1);
+    }
+});
+</script>
 </body>
-</html>
-'''
+</html>'''
 
 
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
-    print(f"🚀 StyleLock AI v4.0 DESIGN EDITION starting on port {port}")
-    print(f"   Editorial UI • Oversized Typography • Grainy Textures")
-    print(f"   {len(HERO_LOOKS)} Hero Looks loaded")
-    print(f"   Anthropic: {'✅' if ANTHROPIC_API_KEY else '❌'}")
-    print(f"   VModel: {'✅' if VMODEL_API_KEY else '❌'}")
+    print(f"🚀 StyleLock v4.1 MAGAZINE EDITION on port {port}")
     uvicorn.run(app, host="0.0.0.0", port=port)
