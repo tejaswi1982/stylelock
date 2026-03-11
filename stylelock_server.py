@@ -308,7 +308,7 @@ HERO_LOOKS = [
 # FASTAPI APP
 # ============================================================
 
-app = FastAPI(title="StyleLock AI", version="4.2")
+app = FastAPI(title="StyleLock AI", version="4.3")
 
 app.add_middleware(
     CORSMiddleware,
@@ -646,18 +646,20 @@ async def serve_app():
         .slide-trending .slide-tier { color: var(--volt); text-shadow: 3px 3px 0 var(--black); }
         .slide-bold .slide-tier { color: var(--blue); }
         
-        /* Wavy stamp badge */
+        /* Wavy stamp badge - positioned bottom right, outside photo */
         .stamp {
-            position: absolute; bottom: 25%; left: 50%; transform: translateX(-50%) rotate(-8deg);
-            width: 100px; height: 100px; z-index: 10;
+            position: absolute; bottom: 22%; right: 8%; transform: rotate(-8deg);
+            width: 90px; height: 90px; z-index: 10;
+            background: var(--cream); border-radius: 50%; padding: 5px;
         }
+        .slide-bold .stamp { background: var(--black); }
         .stamp svg { width: 100%; height: 100%; }
         .stamp-text {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             text-align: center;
         }
-        .stamp-pct { font-family: 'Anton', sans-serif; font-size: 24px; display: block; }
-        .stamp-label { font-family: 'Space Mono', monospace; font-size: 8px; letter-spacing: 0.1em; }
+        .stamp-pct { font-family: 'Anton', sans-serif; font-size: 22px; display: block; }
+        .stamp-label { font-family: 'Space Mono', monospace; font-size: 7px; letter-spacing: 0.1em; }
         .slide-clean .stamp-pct, .slide-trending .stamp-pct { color: var(--blue); }
         .slide-bold .stamp-pct { color: var(--volt); }
         
@@ -683,10 +685,12 @@ async def serve_app():
         }
         .cutcard-back { font-size: 24px; cursor: pointer; }
         .cutcard-title { font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; }
-        .cutcard-photo { width: 100%; aspect-ratio: 1/1; object-fit: cover; object-position: top; filter: grayscale(100%); }
+        .cutcard-photo-wrap { position: relative; background: #e5e5e5; }
+        .cutcard-photo { width: 100%; aspect-ratio: 4/5; object-fit: contain; background: #e5e5e5; filter: grayscale(100%); }
         .cutcard-script {
-            position: absolute; top: 50%; right: 20px; transform: rotate(-10deg);
-            font-family: 'Caveat', cursive; font-size: 20px; color: var(--volt);
+            position: absolute; bottom: 80px; right: 20px; transform: rotate(-8deg);
+            font-family: 'Caveat', cursive; font-size: 18px; color: var(--volt);
+            text-shadow: 1px 1px 0 var(--black);
         }
         .cutcard-badge {
             position: absolute; bottom: 20px; right: 20px;
@@ -760,7 +764,7 @@ async def serve_app():
 
 <!-- HOME -->
 <div class="screen home active" id="homeScreen">
-    <div class="home-bg"><span>STYLE</span><span>LOCK</span><span>STYLE</span><span>LOCK</span></div>
+    <div class="home-bg"><span>STYLE</span><span>LOCK</span></div>
     <div class="home-labels"><span class="label">Identity</span><span class="label">Beta 1.0</span></div>
     <div class="home-content">
         <div class="home-upload">
@@ -817,7 +821,7 @@ async def serve_app():
         <span class="cutcard-back" onclick="backToResults()">←</span>
         <span class="cutcard-title">StyleLock Cut Card</span>
     </div>
-    <div style="position:relative">
+    <div class="cutcard-photo-wrap">
         <img id="cutcardPhoto" class="cutcard-photo" src="" alt="">
         <span class="cutcard-script">show this to the barber</span>
         <span class="cutcard-badge" id="cutcardBadge">READY</span>
@@ -1052,5 +1056,5 @@ document.getElementById('resultsScreen').addEventListener('touchend', e => {
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
-    print(f"🚀 StyleLock v4.2 MAGAZINE EDITION on port {port}")
+    print(f"🚀 StyleLock v4.3 MAGAZINE EDITION on port {port}")
     uvicorn.run(app, host="0.0.0.0", port=port)
