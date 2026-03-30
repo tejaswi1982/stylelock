@@ -1,0 +1,714 @@
+/* =============================================================================
+   STYLELOCK CSS v51
+   Organized: Variables → Base → Screens → Components → Animations
+   ============================================================================= */
+
+/* =============================================================================
+   CSS VARIABLES
+   ============================================================================= */
+
+:root {
+  /* Brand Colors */
+  --bg-dark: #1a2f2a;
+  --bg-card: #2a3f3a;
+  --lime: #c8e64a;
+  --cream: #f5f3e8;
+  --cream-dark: #e5e3d8;
+  
+  /* Text Colors */
+  --text-primary: #f5f3e8;
+  --text-muted: rgba(245, 243, 232, 0.7);
+  --text-dark: #1a2f2a;
+  
+  /* UI Colors */
+  --border-subtle: rgba(245, 243, 232, 0.15);
+  --overlay-dark: rgba(0, 0, 0, 0.5);
+  --ios-blue: #007AFF;
+  --ios-red: #FF3B30;
+  
+  /* Typography */
+  --font-display: "Bebas Neue", sans-serif;
+  --font-mono: "Space Mono", monospace;
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-handwritten: "Caveat", cursive;
+  
+  /* Spacing */
+  --spacing-xs: 8px;
+  --spacing-sm: 12px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 40px;
+  
+  /* Border Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-pill: 100px;
+}
+
+/* =============================================================================
+   BASE STYLES
+   ============================================================================= */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  left: 0;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg-dark);
+  color: var(--text-primary);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+input[type="file"] {
+  display: none;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+}
+
+/* =============================================================================
+   SCREEN SYSTEM
+   All screens are hidden by default, only .active is shown
+   ============================================================================= */
+
+.screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: none;
+  background: var(--bg-dark);
+  overflow: hidden;
+}
+
+.screen.active {
+  display: block;
+}
+
+/* =============================================================================
+   HOME SCREEN
+   ============================================================================= */
+
+#screen-home {
+  background-image: url('/static/images/home_screen.jpg');
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+}
+
+.home-hotspot {
+  position: absolute;
+  bottom: 9%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  max-width: 240px;
+  height: 50px;
+  z-index: 10;
+}
+
+/* Progress bar animations for home screen (if visible in design) */
+.home-progress-bars {
+  position: absolute;
+  bottom: 15%;
+  left: 0;
+  right: 0;
+  padding: 0 20px;
+}
+
+/* =============================================================================
+   UPLOAD SCREEN
+   ============================================================================= */
+
+#screen-upload {
+  background-image: url('/static/images/upload_screen.jpg');
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+}
+
+.upload-frame-hotspot {
+  position: absolute;
+  top: 13%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80%;
+  max-width: 320px;
+  height: 55%;
+  z-index: 10;
+}
+
+.upload-preview-overlay {
+  position: absolute;
+  top: 13%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80%;
+  max-width: 320px;
+  height: 55%;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.upload-preview-overlay.visible {
+  opacity: 1;
+}
+
+.upload-preview-overlay img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.upload-hotspot {
+  position: absolute;
+  bottom: 3%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  max-width: 360px;
+  height: 56px;
+  z-index: 10;
+}
+
+/* =============================================================================
+   iOS ACTION SHEET (Photo picker)
+   ============================================================================= */
+
+.action-sheet-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--overlay-dark);
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 100;
+  padding: 0 10px 20px;
+}
+
+.action-sheet-overlay.visible {
+  display: flex;
+}
+
+.action-sheet {
+  width: 100%;
+  max-width: 400px;
+}
+
+.action-sheet-group {
+  background: var(--cream);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.action-sheet-btn {
+  width: 100%;
+  padding: 18px;
+  font-size: 18px;
+  color: var(--ios-blue);
+  background: transparent;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.action-sheet-btn:last-child {
+  border-bottom: none;
+}
+
+.action-sheet-cancel {
+  width: 100%;
+  padding: 18px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ios-blue);
+  background: var(--cream);
+  border-radius: 14px;
+  text-align: center;
+}
+
+/* =============================================================================
+   LOADING / READING SCREEN
+   The background image has: READING title, empty frame, "stay with me", 
+   progress bar. We overlay the user's selfie into the frame area and 
+   animate the progress bar on top of the existing one in the image.
+   ============================================================================= */
+
+#screen-loading {
+  background-image: url('/static/images/loading_screen.jpg');
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  display: none;
+  position: relative;
+}
+
+#screen-loading.active {
+  display: block;
+}
+
+/* Selfie container - positioned to overlay the empty frame in the background */
+.loading-selfie-container {
+  position: absolute;
+  top: 11.5%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 62%;
+  max-width: 280px;
+  aspect-ratio: 3/4;
+  overflow: hidden;
+  z-index: 5;
+}
+
+.loading-selfie-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Progress bar overlay - positioned on top of the progress bar in the image */
+.loading-progress-overlay {
+  position: absolute;
+  bottom: 7.5%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 62%;
+  max-width: 270px;
+  height: 12px;
+  z-index: 10;
+}
+
+.loading-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--lime);
+  border-radius: 6px;
+  transition: width 0.1s ease-out;
+}
+
+/* Hide the text elements since they're in the background image */
+.loading-content,
+.loading-title,
+.loading-note,
+.loading-status,
+.loading-progress-container {
+  display: none;
+}
+
+/* =============================================================================
+   RESULTS SCREEN
+   Clean, minimal, editorial design inspired by references
+   ============================================================================= */
+
+#screen-results {
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#screen-results.active {
+  display: flex;
+}
+
+.results-header {
+  padding: var(--spacing-lg);
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.results-title {
+  font-family: var(--font-display);
+  font-size: 32px;
+  letter-spacing: 3px;
+}
+
+/* Swiper Container */
+.results-swiper {
+  flex: 1;
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.results-swiper::-webkit-scrollbar {
+  display: none;
+}
+
+/* Individual Slide */
+.result-slide {
+  flex: 0 0 100%;
+  scroll-snap-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 var(--spacing-lg);
+  padding-bottom: var(--spacing-lg);
+}
+
+/* Result Card - Editorial/Minimal Design */
+.result-card {
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.result-card-image {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3/4;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--bg-card);
+}
+
+.result-card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Style name overlay - minimal, bottom-left */
+.result-style-name {
+  position: absolute;
+  bottom: var(--spacing-lg);
+  left: var(--spacing-lg);
+  font-family: var(--font-display);
+  font-size: 48px;
+  color: var(--cream);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  letter-spacing: 2px;
+}
+
+/* Specs below image - clean grid */
+.result-specs {
+  padding: var(--spacing-md) 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-sm);
+}
+
+.result-spec {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.result-spec-label {
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 2px;
+}
+
+.result-spec-value {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+/* CTA Button */
+.result-cta {
+  width: 100%;
+  padding: 16px;
+  background: var(--lime);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--bg-dark);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: auto;
+}
+
+/* Pagination Dots */
+.results-dots {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-md);
+  flex-shrink: 0;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  transition: all 0.3s ease;
+}
+
+.dot.active {
+  background: var(--lime);
+  width: 24px;
+  border-radius: 4px;
+}
+
+/* =============================================================================
+   CUT CARD SCREEN
+   Editorial, poster-like design
+   ============================================================================= */
+
+#screen-cutcard {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--spacing-xl) var(--spacing-lg);
+  overflow-y: auto;
+}
+
+#screen-cutcard.active {
+  display: flex;
+}
+
+.cutcard-title {
+  font-family: var(--font-display);
+  font-size: 36px;
+  letter-spacing: 3px;
+  margin-bottom: var(--spacing-lg);
+}
+
+.cutcard-container {
+  width: 100%;
+  max-width: 340px;
+  background: var(--cream);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  color: var(--text-dark);
+}
+
+.cutcard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  border-bottom: 2px solid var(--bg-dark);
+}
+
+.cutcard-logo {
+  font-family: var(--font-display);
+  font-size: 24px;
+  letter-spacing: 2px;
+}
+
+.cutcard-date {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.cutcard-style-name {
+  font-family: var(--font-display);
+  font-size: 48px;
+  letter-spacing: 2px;
+  margin-bottom: var(--spacing-lg);
+}
+
+.cutcard-specs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+.cutcard-spec {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.cutcard-spec-label {
+  color: var(--bg-card);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+
+.cutcard-spec-value {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.cutcard-barber-btn {
+  width: 100%;
+  padding: 16px;
+  background: var(--bg-dark);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--lime);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* =============================================================================
+   BARBER MODE SCREEN
+   ============================================================================= */
+
+#screen-barber {
+  display: none;
+  flex-direction: column;
+  padding: var(--spacing-xl) var(--spacing-lg);
+  overflow-y: auto;
+}
+
+#screen-barber.active {
+  display: flex;
+}
+
+.barber-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-lg);
+}
+
+.barber-title {
+  font-family: var(--font-display);
+  font-size: 28px;
+  letter-spacing: 2px;
+}
+
+.barber-close {
+  width: 44px;
+  height: 44px;
+  background: var(--bg-card);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: var(--cream);
+}
+
+.barber-image {
+  width: 100%;
+  aspect-ratio: 3/4;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: var(--spacing-lg);
+}
+
+.barber-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.barber-specs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+}
+
+.barber-spec {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+}
+
+.barber-spec-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+.barber-spec-value {
+  font-family: var(--font-display);
+  font-size: 24px;
+  color: var(--lime);
+}
+
+.barber-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--border-subtle);
+  margin-top: auto;
+}
+
+.barber-logo {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--lime);
+  letter-spacing: 3px;
+}
+
+/* =============================================================================
+   UTILITY CLASSES
+   ============================================================================= */
+
+.text-center { text-align: center; }
+.text-muted { color: var(--text-muted); }
+.mt-auto { margin-top: auto; }
+.hidden { display: none !important; }
+
+/* =============================================================================
+   ANIMATIONS
+   ============================================================================= */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Smooth transitions for screen changes */
+.screen {
+  animation: fadeIn 0.3s ease;
+}
