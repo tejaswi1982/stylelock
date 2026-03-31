@@ -1,0 +1,787 @@
+/* ============================================================
+   STYLELOCK V53 - CORRECT DESIGN LANGUAGE
+   Dark green theme with volt accents
+   ============================================================ */
+
+:root {
+    --bg-dark: #1a2f2a;
+    --bg-darker: #0f1f1a;
+    --volt: #c8e600;
+    --cream: #f5f0e6;
+    --cream-dim: rgba(245, 240, 230, 0.6);
+    --gray: #8a9a8a;
+    --card-bg: #243b35;
+    --white: #ffffff;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+    height: 100%;
+    overflow: hidden;
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg-dark);
+    color: var(--cream);
+}
+
+/* ============================================================
+   SCREENS
+   ============================================================ */
+
+.screen {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.screen.active {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ============================================================
+   HOME SCREEN - Full-bleed designed image with hotspot
+   ============================================================ */
+
+.home {
+    position: relative;
+}
+
+.home-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('/static/images/home-hero.jpg') top center/contain no-repeat;
+    background-color: #1a2f2a;
+}
+
+/* Invisible hotspot positioned over the "Unlock it for ₹79" button in the image */
+.home-hotspot {
+    position: absolute;
+    bottom: 8%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60%;
+    max-width: 240px;
+    height: 55px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    z-index: 10;
+    /* Debug: uncomment to see hotspot position */
+    /* background: rgba(255,0,0,0.3); */
+}
+
+/* ============================================================
+   UPLOAD SCREEN - "CURRENT SELF"
+   ============================================================ */
+
+.upload {
+    background: var(--bg-dark);
+    align-items: center;
+    justify-content: center;
+    padding: 40px 24px;
+}
+
+.upload-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 15vw;
+    letter-spacing: 0.02em;
+    color: var(--cream);
+    opacity: 0.15;
+    position: absolute;
+    top: 8%;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+}
+
+.upload-frame {
+    position: relative;
+    width: 70%;
+    max-width: 280px;
+    aspect-ratio: 3/4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.upload-frame-corners {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+}
+
+.corner {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    border-color: var(--volt);
+    border-style: solid;
+    border-width: 0;
+}
+
+.corner.tl { top: 0; left: 0; border-top-width: 2px; border-left-width: 2px; }
+.corner.tr { top: 0; right: 0; border-top-width: 2px; border-right-width: 2px; }
+.corner.bl { bottom: 0; left: 0; border-bottom-width: 2px; border-left-width: 2px; }
+.corner.br { bottom: 0; right: 0; border-bottom-width: 2px; border-right-width: 2px; }
+
+.upload-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px dashed rgba(245, 240, 230, 0.2);
+}
+
+.face-outline {
+    width: 60%;
+    height: 50%;
+    border: 2px dashed rgba(245, 240, 230, 0.15);
+    border-radius: 50% 50% 45% 45%;
+}
+
+.upload-preview {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: none;
+}
+
+.upload-preview.visible {
+    display: block;
+}
+
+.upload-hint {
+    font-family: 'Caveat', cursive;
+    font-size: 20px;
+    color: var(--volt);
+    margin-top: 24px;
+    margin-bottom: 40px;
+}
+
+.btn-take-photo {
+    width: 100%;
+    max-width: 280px;
+    padding: 18px 24px;
+    background: transparent;
+    color: var(--cream);
+    border: 2px solid var(--cream);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+}
+
+/* ============================================================
+   ACTION SHEET (iOS-style)
+   ============================================================ */
+
+.action-sheet-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 10px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0));
+}
+
+.action-sheet-overlay.active {
+    display: flex;
+}
+
+.action-sheet {
+    width: 100%;
+    max-width: 400px;
+}
+
+.action-sheet-group {
+    background: var(--cream);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.action-sheet-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 18px 20px;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    font-size: 17px;
+    color: var(--bg-dark);
+    cursor: pointer;
+}
+
+.action-sheet-btn:last-child {
+    border-bottom: none;
+}
+
+.action-sheet-btn svg {
+    width: 22px;
+    height: 22px;
+    opacity: 0.5;
+}
+
+.action-sheet-cancel {
+    width: 100%;
+    padding: 18px 20px;
+    background: var(--cream);
+    border: none;
+    border-radius: 14px;
+    font-size: 17px;
+    font-weight: 600;
+    color: #007AFF;
+    cursor: pointer;
+}
+
+/* ============================================================
+   LOADING SCREEN - "READING"
+   ============================================================ */
+
+.loading {
+    background: var(--bg-dark);
+    align-items: center;
+    justify-content: center;
+    padding: 40px 24px;
+}
+
+.loading-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18vw;
+    color: var(--cream);
+    letter-spacing: 0.02em;
+    position: absolute;
+    top: 8%;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.loading-frame {
+    position: relative;
+    width: 65%;
+    max-width: 260px;
+    aspect-ratio: 3/4;
+    background: var(--card-bg);
+    overflow: hidden;
+}
+
+.loading-selfie {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.loading-script {
+    position: absolute;
+    bottom: 15%;
+    right: 10%;
+    font-family: 'Caveat', cursive;
+    font-size: 22px;
+    color: var(--cream);
+    transform: rotate(-5deg);
+}
+
+.loading-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 40px;
+    margin-bottom: 16px;
+}
+
+.loading-text {
+    font-family: 'Space Mono', monospace;
+    font-size: 14px;
+    color: var(--cream);
+}
+
+.loading-emoji {
+    font-size: 16px;
+}
+
+.loading-progress {
+    width: 70%;
+    max-width: 280px;
+    height: 8px;
+    background: var(--card-bg);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.loading-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--volt);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+/* ============================================================
+   ERROR SCREEN
+   ============================================================ */
+
+.error {
+    background: var(--bg-dark);
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    text-align: center;
+}
+
+.error-icon {
+    font-size: 60px;
+    margin-bottom: 20px;
+}
+
+.error-text {
+    color: #ff6b6b;
+    margin-bottom: 30px;
+    font-size: 14px;
+    max-width: 280px;
+}
+
+.btn-retry {
+    padding: 16px 40px;
+    background: var(--cream);
+    color: var(--bg-dark);
+    border: none;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+}
+
+/* ============================================================
+   RESULTS SCREEN - Green Theme Carousel
+   ============================================================ */
+
+.results {
+    background: var(--bg-dark);
+}
+
+.results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+}
+
+.results-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 24px;
+    letter-spacing: 0.05em;
+    color: var(--cream);
+}
+
+.results-title .accent {
+    color: var(--volt);
+}
+
+.btn-back {
+    width: 44px;
+    height: 44px;
+    background: transparent;
+    border: 2px solid var(--cream);
+    color: var(--cream);
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.results-carousel {
+    flex: 1;
+    display: flex;
+    transition: transform 0.4s ease;
+    padding-top: 80px;
+}
+
+.results-slide {
+    min-width: 100vw;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 24px 120px;
+}
+
+.slide-card {
+    width: 100%;
+    max-width: 320px;
+    background: var(--card-bg);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 20px;
+}
+
+.slide-image {
+    width: 100%;
+    aspect-ratio: 3/4;
+    object-fit: cover;
+}
+
+.slide-image-placeholder {
+    width: 100%;
+    aspect-ratio: 3/4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--gray);
+    font-size: 14px;
+}
+
+.slide-tier {
+    padding: 16px 20px;
+    text-align: center;
+}
+
+.slide-tier-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    color: var(--volt);
+    margin-bottom: 4px;
+}
+
+.slide-tier-sub {
+    font-size: 12px;
+    color: var(--cream-dim);
+}
+
+.slide-info {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    width: 100%;
+    max-width: 320px;
+    margin-bottom: 20px;
+}
+
+.info-item {
+    text-align: center;
+}
+
+.info-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--gray);
+    letter-spacing: 0.1em;
+    margin-bottom: 4px;
+}
+
+.info-value {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    color: var(--cream);
+}
+
+.btn-select {
+    width: 100%;
+    max-width: 320px;
+    padding: 18px 24px;
+    background: var(--volt);
+    color: var(--bg-dark);
+    border: none;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+}
+
+.results-dots {
+    position: absolute;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+}
+
+.dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    background: var(--cream);
+    opacity: 0.3;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.dot.active {
+    width: 24px;
+    background: var(--volt);
+    opacity: 1;
+}
+
+/* ============================================================
+   CUT CARD SCREEN
+   ============================================================ */
+
+.cutcard {
+    background: var(--bg-dark);
+    overflow-y: auto;
+}
+
+.cutcard-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 24px;
+    position: sticky;
+    top: 0;
+    background: var(--bg-dark);
+    z-index: 10;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.cutcard-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    letter-spacing: 0.1em;
+}
+
+.cutcard-content {
+    padding: 24px;
+}
+
+.cutcard-photo {
+    width: 100%;
+    aspect-ratio: 1/1;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-bottom: 24px;
+}
+
+.cutcard-section {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.cutcard-section:last-child {
+    border-bottom: none;
+}
+
+.cutcard-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--volt);
+    letter-spacing: 0.15em;
+    margin-bottom: 8px;
+}
+
+.cutcard-value {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    color: var(--cream);
+    margin-bottom: 4px;
+}
+
+.cutcard-desc {
+    font-size: 13px;
+    color: var(--gray);
+    line-height: 1.5;
+}
+
+.cutcard-actions {
+    padding: 20px 24px;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0));
+}
+
+/* ============================================================
+   LOCKED SCREEN
+   ============================================================ */
+
+.locked {
+    background: var(--bg-dark);
+}
+
+.locked-photo {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+
+.locked-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.locked-badge {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-15deg);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 24px;
+    color: var(--volt);
+    border: 3px solid var(--volt);
+    padding: 12px 24px;
+    border-radius: 50%;
+    width: 120px;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background: rgba(26, 47, 42, 0.8);
+}
+
+.locked-actions {
+    padding: 20px 24px;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0));
+    background: var(--bg-darker);
+}
+
+.btn-barber {
+    width: 100%;
+    padding: 18px 24px;
+    background: var(--volt);
+    color: var(--bg-dark);
+    border: none;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    margin-bottom: 12px;
+}
+
+.btn-save {
+    width: 100%;
+    padding: 18px 24px;
+    background: transparent;
+    color: var(--cream);
+    border: 2px solid var(--cream);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    margin-bottom: 12px;
+}
+
+.btn-restart {
+    width: 100%;
+    padding: 18px 24px;
+    background: transparent;
+    color: var(--gray);
+    border: none;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+}
+
+/* ============================================================
+   BARBER MODE
+   ============================================================ */
+
+.barber {
+    background: var(--bg-darker);
+    overflow-y: auto;
+}
+
+.barber-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    position: sticky;
+    top: 0;
+    background: var(--bg-darker);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.barber-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    color: var(--volt);
+    letter-spacing: 0.1em;
+}
+
+.barber-close {
+    width: 44px;
+    height: 44px;
+    background: transparent;
+    border: none;
+    color: var(--cream);
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.barber-content {
+    padding: 24px;
+}
+
+.barber-photo {
+    width: 100%;
+    aspect-ratio: 1/1;
+    object-fit: cover;
+    margin-bottom: 24px;
+}
+
+.barber-section {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.barber-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--volt);
+    letter-spacing: 0.15em;
+    margin-bottom: 8px;
+}
+
+.barber-value {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    color: var(--cream);
+}
+
+.barber-desc {
+    font-size: 13px;
+    color: var(--gray);
+    margin-top: 4px;
+}
+
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+
+.hidden {
+    display: none !important;
+}
