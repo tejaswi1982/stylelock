@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#1a2f2a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>StyleLock</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Caveat:wght@500;700&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/stylelock.css">
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body>
+
+<!-- ========================================
+     HOME SCREEN - Hero Image with CTA
+     ======================================== -->
+<div class="screen home active" id="homeScreen">
+    <div class="home-bg"></div>
+    <div class="home-content">
+        <div class="home-cta">
+            <button class="btn-unlock" id="unlockBtn">UNLOCK IT FOR ₹79</button>
+        </div>
+        <div class="home-footer">
+            <span class="home-monogram">SL</span>
+            <span class="home-tagline">STYLELOCK // IDENTITY // '26</span>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================
+     UPLOAD SCREEN - "CURRENT SELF"
+     ======================================== -->
+<div class="screen upload" id="uploadScreen">
+    <div class="upload-title">CURRENT SELF</div>
+    <div class="upload-frame">
+        <div class="upload-frame-corners">
+            <span class="corner tl"></span>
+            <span class="corner tr"></span>
+            <span class="corner bl"></span>
+            <span class="corner br"></span>
+        </div>
+        <div class="upload-placeholder" id="uploadPlaceholder">
+            <div class="face-outline"></div>
+        </div>
+        <img class="upload-preview" id="uploadPreview" src="" alt="">
+    </div>
+    <p class="upload-hint">good lighting :)</p>
+    <button class="btn-take-photo" id="takePhotoBtn">TAKE PHOTO</button>
+    
+    <!-- Hidden file inputs -->
+    <input type="file" id="cameraInput" accept="image/*" capture="user" style="display:none">
+    <input type="file" id="libraryInput" accept="image/*" style="display:none">
+    <input type="file" id="fileInput" accept="image/*" style="display:none">
+</div>
+
+<!-- ========================================
+     ACTION SHEET (iOS-style)
+     ======================================== -->
+<div class="action-sheet-overlay" id="actionSheet">
+    <div class="action-sheet">
+        <div class="action-sheet-group">
+            <button class="action-sheet-btn" id="photoLibraryBtn">
+                <span>Photo Library</span>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+            </button>
+            <button class="action-sheet-btn" id="takePhotoCameraBtn">
+                <span>Take Photo</span>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </button>
+            <button class="action-sheet-btn" id="chooseFileBtn">
+                <span>Choose File</span>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+            </button>
+        </div>
+        <button class="action-sheet-cancel" id="cancelSheetBtn">Cancel</button>
+    </div>
+</div>
+
+<!-- ========================================
+     LOADING SCREEN - "READING"
+     ======================================== -->
+<div class="screen loading" id="loadingScreen">
+    <div class="loading-title">READING</div>
+    <div class="loading-frame">
+        <img class="loading-selfie" id="loadingSelfie" src="" alt="">
+        <span class="loading-script">stay with me</span>
+    </div>
+    <div class="loading-status">
+        <span class="loading-text" id="loadingText">Finding your next self</span>
+        <span class="loading-emoji">☺</span>
+    </div>
+    <div class="loading-progress">
+        <div class="loading-progress-fill" id="progressFill"></div>
+    </div>
+</div>
+
+<!-- ========================================
+     ERROR SCREEN
+     ======================================== -->
+<div class="screen error" id="errorScreen">
+    <div class="error-icon">⚠️</div>
+    <p class="error-text" id="errorText">Something went wrong</p>
+    <button class="btn-retry" onclick="goHome()">Try Again</button>
+</div>
+
+<!-- ========================================
+     RESULTS SCREEN - Carousel (Green Theme)
+     ======================================== -->
+<div class="screen results" id="resultsScreen">
+    <div class="results-header">
+        <h1 class="results-title">YOUR <span class="accent">3</span> LOOKS</h1>
+        <button class="btn-back" onclick="goHome()">←</button>
+    </div>
+    <div class="results-carousel" id="resultsCarousel"></div>
+    <div class="results-dots" id="resultsDots"></div>
+</div>
+
+<!-- ========================================
+     CUT CARD SCREEN
+     ======================================== -->
+<div class="screen cutcard" id="cutcardScreen">
+    <div class="cutcard-header">
+        <button class="btn-back" onclick="backToResults()">←</button>
+        <span class="cutcard-title">CUT CARD</span>
+    </div>
+    <div class="cutcard-content" id="cutcardContent"></div>
+    <div class="cutcard-actions">
+        <button class="btn-select" id="selectLookBtn">SELECT THIS LOOK</button>
+    </div>
+</div>
+
+<!-- ========================================
+     LOCKED SCREEN
+     ======================================== -->
+<div class="screen locked" id="lockedScreen">
+    <div class="locked-photo">
+        <img id="lockedPhoto" src="" alt="">
+    </div>
+    <div class="locked-badge">✓ LOCKED</div>
+    <div class="locked-actions">
+        <button class="btn-barber" onclick="showBarber()">SHOW YOUR BARBER</button>
+        <button class="btn-save" onclick="saveToPhone()">SAVE TO PHONE</button>
+        <button class="btn-restart" onclick="goHome()">START OVER</button>
+    </div>
+</div>
+
+<!-- ========================================
+     BARBER MODE
+     ======================================== -->
+<div class="screen barber" id="barberScreen">
+    <div class="barber-header">
+        <span class="barber-title">BARBER MODE</span>
+        <button class="barber-close" onclick="backToLocked()">✕</button>
+    </div>
+    <div class="barber-content" id="barberContent"></div>
+</div>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>
