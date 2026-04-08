@@ -592,7 +592,7 @@ body::before {
 
 .results-board {
     display: grid;
-    grid-template-rows: minmax(0, 58fr) minmax(0, 42fr);
+    grid-template-rows: minmax(0, 63fr) minmax(0, 37fr);
     align-items: stretch;
     width: min(92vw, 382px);
     margin: 0 auto;
@@ -653,8 +653,8 @@ body::before {
     height: 100%;
     object-fit: cover;
     object-position: center 24%;
-    transform: scale(0.91);
-    transform-origin: center 26%;
+    transform: scale(0.96);
+    transform-origin: center 28%;
 }
 
 .slide-image-placeholder {
