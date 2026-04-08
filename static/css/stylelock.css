@@ -596,9 +596,9 @@ body::before {
     align-items: stretch;
     width: min(92vw, 382px);
     margin: 0 auto;
-    padding: 0;
+    padding: 0 0 env(safe-area-inset-bottom, 0px);
     gap: 4px;
-    height: calc(100dvh - 84px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - 56px - env(safe-area-inset-top, 0px));
 }
 
 .slide-card {
@@ -819,7 +819,7 @@ body::before {
 .support-card-image-wrap {
     position: relative;
     flex: 0 0 auto;
-    height: clamp(120px, 16svh, 160px);
+    height: clamp(130px, 18svh, 176px);
     overflow: hidden;
     border-bottom: 1px solid rgba(243, 239, 227, 0.11);
 }
@@ -828,9 +828,9 @@ body::before {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    object-position: center 14%;
-    transform: scale(0.97);
-    transform-origin: center 16%;
+    object-position: center 28%;
+    transform: scale(0.93);
+    transform-origin: center 30%;
 }
 
 .support-match {
