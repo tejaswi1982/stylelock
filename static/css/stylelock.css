@@ -592,7 +592,7 @@ body::before {
 
 .results-board {
     display: grid;
-    grid-template-rows: minmax(0, 61fr) minmax(0, 39fr);
+    grid-template-rows: minmax(0, 57fr) minmax(0, 43fr);
     align-items: stretch;
     width: min(92vw, 382px);
     margin: 0 auto;
@@ -635,7 +635,7 @@ body::before {
     position: relative;
     width: 100%;
     flex: 1 1 auto;
-    min-height: clamp(206px, 29.2svh, 262px);
+    min-height: clamp(202px, 28.6svh, 256px);
     overflow: hidden;
 }
 
@@ -704,7 +704,7 @@ body::before {
 .slide-tier {
     display: grid;
     gap: 2px;
-    padding: 7px 12px 4px;
+    padding: 6px 12px 4px;
     border-top: 1px solid rgba(243, 239, 227, 0.1);
 }
 
@@ -773,7 +773,7 @@ body::before {
 .hero-cta {
     width: calc(100% - 24px);
     margin: 0 12px 8px;
-    padding: 8px 12px;
+    padding: 7px 12px;
     border: 1px solid rgba(200, 230, 0, 0.58);
     color: #11241e;
     background: linear-gradient(180deg, #d8f74e 0%, #bddb1d 100%);
@@ -802,6 +802,7 @@ body::before {
     align-items: stretch;
     gap: 4px;
     min-height: 0;
+    height: 100%;
 }
 
 .support-card {
@@ -813,15 +814,16 @@ body::before {
     color: var(--cream);
     display: flex;
     flex-direction: column;
-    justify-content: flex-start;
+    justify-content: space-between;
     align-self: stretch;
     min-height: 0;
+    height: 100%;
 }
 
 .support-card-image-wrap {
     position: relative;
-    flex: 0 0 auto;
-    min-height: clamp(96px, 12.2svh, 112px);
+    flex: 1 1 auto;
+    min-height: clamp(104px, 13.8svh, 124px);
     overflow: hidden;
     border-bottom: 1px solid rgba(243, 239, 227, 0.11);
 }
@@ -865,10 +867,10 @@ body::before {
 }
 
 .support-card-meta {
-    padding: 6px 8px 5px;
+    padding: 7px 8px 7px;
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 4px;
     min-height: 0;
 }
 
@@ -899,7 +901,7 @@ body::before {
     font-family: 'Space Mono', monospace;
     font-size: 10px;
     letter-spacing: 0.06em;
-    padding: 4px 7px;
+    padding: 6px 7px;
     cursor: pointer;
     position: relative;
     z-index: 4;
