@@ -652,9 +652,9 @@ body::before {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    object-position: center 22%;
-    transform: scale(0.89);
-    transform-origin: center 24%;
+    object-position: center 20%;
+    transform: scale(0.85);
+    transform-origin: center 21%;
 }
 
 .slide-image-placeholder {
@@ -672,8 +672,8 @@ body::before {
 
 .match-badge {
     position: absolute;
-    top: 14px;
-    right: 14px;
+    top: 16px;
+    right: 16px;
     z-index: 3;
     min-width: 68px;
     padding: 8px 10px 7px;
@@ -729,8 +729,8 @@ body::before {
 
 .slide-note {
     position: absolute;
-    right: 14px;
-    bottom: 16px;
+    right: 18px;
+    bottom: 18px;
     color: rgba(204, 238, 79, 0.95);
     font-family: 'Caveat', cursive;
     font-size: 24px;
@@ -781,8 +781,8 @@ body::before {
 
 .achievable-badge {
     position: absolute;
-    top: 14px;
-    left: 14px;
+    top: 16px;
+    left: 16px;
     z-index: 4;
     font-family: 'Space Mono', monospace;
     font-size: 9px;
