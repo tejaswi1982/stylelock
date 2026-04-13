@@ -26,7 +26,7 @@ from pathlib import Path
 import httpx
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -874,8 +874,14 @@ async def parallel_preprocess(image_base64: str) -> Tuple[dict, str]:
 # API ROUTES
 # =============================================================================
 
-@app.get("/", response_class=JSONResponse)
+@app.get("/", include_in_schema=False)
 async def root():
+    """Redirect root traffic to the app entrypoint."""
+    return RedirectResponse(url="/app", status_code=307)
+
+
+@app.get("/api/health", response_class=JSONResponse)
+async def health_check():
     """Health check"""
     return {
         "app": "StyleLock AI",
