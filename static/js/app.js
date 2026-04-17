@@ -65,7 +65,15 @@ function byId(id) {
 
 function syncViewportHeight() {
     try {
-        const viewportHeight = window.innerHeight || document.documentElement?.clientHeight || 0;
+        // Prefer visualViewport.height — this reflects the ACTUAL visible area
+        // in iOS Safari (accounting for dynamic toolbar) and in Instagram's
+        // in-app webview (where window.innerHeight is often inaccurate).
+        const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+        const viewportHeight =
+            (vv && vv.height) ||
+            window.innerHeight ||
+            document.documentElement?.clientHeight ||
+            0;
         if (viewportHeight > 0) {
             document.documentElement.style.setProperty('--app-height', `${viewportHeight}px`);
         }
@@ -1041,6 +1049,12 @@ window.addEventListener('resize', syncViewportHeight, { passive: true });
 window.addEventListener('orientationchange', () => {
     setTimeout(syncViewportHeight, 120);
 });
+
+// visualViewport fires for iOS Safari toolbar show/hide and for Instagram
+// webview keyboard/chrome transitions — window.resize does NOT fire for these.
+if (typeof window !== 'undefined' && window.visualViewport) {
+    window.visualViewport.addEventListener('resize', syncViewportHeight, { passive: true });
+}
 
 window.addEventListener('pageshow', (event) => {
     syncViewportHeight();
