@@ -58,9 +58,12 @@ body::before {
     position: fixed;
     inset: 0;
     width: 100%;
+    /* Let `inset: 0` size the screen to the visible viewport. `--app-height`
+       is provided by JS via visualViewport for extra precision on iOS/Instagram.
+       We avoid `max-height` here so children that need natural scroll flow
+       (upload screen) are never clipped from above. */
     height: var(--app-height, 100dvh);
     min-height: var(--app-height, 100dvh);
-    max-height: var(--app-height, 100dvh);
     overflow-x: hidden;
     overflow-y: hidden;
     z-index: 2;
@@ -177,11 +180,14 @@ body::before {
     justify-content: flex-start;
     align-items: center;
     gap: clamp(8px, 1.25svh, 14px);
-    min-height: var(--app-height, 100dvh);
+    /* The .screen parent constrains us to the visible viewport; within that we
+       allow natural top-down content flow and native scrolling if content is
+       taller than the viewport (iPhone SE, Instagram in-app browser, etc.). */
+    min-height: 100%;
     padding:
         calc(10px + env(safe-area-inset-top, 0px))
         max(20px, env(safe-area-inset-right, 0px))
-        calc(42px + env(safe-area-inset-bottom, 0px))
+        calc(24px + env(safe-area-inset-bottom, 0px))
         max(20px, env(safe-area-inset-left, 0px));
     background: radial-gradient(120% 100% at 50% 4%, #1e463c 0%, #102821 43%, #091712 100%);
     overflow-y: auto;
@@ -1346,25 +1352,4 @@ body::before {
     padding: 4px 7px;
     border-radius: 10px;
     border: 1px solid rgba(243, 239, 227, 0.11);
-    background: rgba(7, 16, 13, 0.4);
-}
-
-.barber-label {
-    font-family: 'Space Mono', monospace;
-    font-size: 10px;
-    color: var(--volt-soft);
-    letter-spacing: 0.08em;
-}
-
-.barber-value {
-    color: rgba(243, 239, 227, 0.9);
-    font-size: 13px;
-    line-height: 1.38;
-}
-
-.barber-brand-strip {
-    margin-top: 5px;
-    padding: 8px 10px;
-    border-radius: 0 0 18px 18px;
-    background: linear-gradient(90deg, rgba(10, 22, 18, 0.95), rgba(15, 31, 26, 0.95));
-    border-top: 1px sol
+    background: rgba(7, 1
