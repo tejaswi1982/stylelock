@@ -176,23 +176,28 @@ body::before {
     flex-direction: column;
     justify-content: flex-start;
     align-items: center;
-    gap: clamp(10px, 1.6svh, 14px);
+    gap: clamp(8px, 1.25svh, 14px);
     min-height: var(--app-height, 100dvh);
     padding:
-        calc(12px + env(safe-area-inset-top, 0px))
+        calc(10px + env(safe-area-inset-top, 0px))
         max(20px, env(safe-area-inset-right, 0px))
-        calc(28px + env(safe-area-inset-bottom, 0px))
+        calc(42px + env(safe-area-inset-bottom, 0px))
         max(20px, env(safe-area-inset-left, 0px));
     background: radial-gradient(120% 100% at 50% 4%, #1e463c 0%, #102821 43%, #091712 100%);
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
+    scroll-padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+}
+
+.upload > * {
+    flex-shrink: 0;
 }
 
 .upload-title {
     font-family: 'Bebas Neue', sans-serif;
-    font-size: clamp(56px, 15vw, 110px);
+    font-size: clamp(52px, 14vw, 104px);
     letter-spacing: 0.02em;
     line-height: 0.9;
     color: rgba(243, 239, 227, 0.95);
@@ -203,7 +208,7 @@ body::before {
 .upload-guide {
     width: min(88vw, 340px);
     display: grid;
-    gap: 8px;
+    gap: clamp(6px, 1svh, 8px);
     margin-bottom: 0;
 }
 
@@ -231,7 +236,7 @@ body::before {
 }
 
 .upload-guide-card {
-    width: min(36vw, 142px);
+    width: clamp(112px, 34vw, 142px);
     margin: 0 auto;
     padding: 6px;
     border-radius: 18px;
@@ -251,7 +256,7 @@ body::before {
 
 .upload-frame {
     position: relative;
-    width: min(52vw, 214px);
+    width: clamp(172px, 48vw, 214px);
     aspect-ratio: 3 / 4;
     flex: 0 0 auto;
     border-radius: 22px;
@@ -349,9 +354,9 @@ body::before {
 .upload-actions {
     width: min(88vw, 340px);
     display: grid;
-    gap: 10px;
+    gap: clamp(8px, 1.2svh, 10px);
     margin-top: 0;
-    padding-bottom: 0;
+    padding-bottom: max(6px, env(safe-area-inset-bottom, 0px));
     z-index: 6;
     padding-top: 0;
     background: none;
@@ -1362,148 +1367,4 @@ body::before {
     padding: 8px 10px;
     border-radius: 0 0 18px 18px;
     background: linear-gradient(90deg, rgba(10, 22, 18, 0.95), rgba(15, 31, 26, 0.95));
-    border-top: 1px solid rgba(243, 239, 227, 0.12);
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 12px;
-}
-
-.brand-lockup {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.brand-mark {
-    width: 32px;
-    height: 38px;
-    display: block;
-    object-fit: contain;
-    background: transparent;
-    mix-blend-mode: normal;
-    filter: none;
-}
-
-.brand-word {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 22px;
-    letter-spacing: 0.05em;
-    color: rgba(243, 239, 227, 0.95);
-}
-
-.brand-sub {
-    font-family: 'Space Mono', monospace;
-    font-size: 10px;
-    color: rgba(243, 239, 227, 0.55);
-    letter-spacing: 0.08em;
-}
-
-.results-slide .slide-image-placeholder {
-    min-height: 100%;
-}
-
-/* ============================================================
-   RESPONSIVE
-   ============================================================ */
-
-@media (max-width: 380px) {
-    .results-title {
-        font-size: 22px;
-    }
-
-    .slide-tier-name {
-        font-size: 30px;
-    }
-
-    .btn-take-photo,
-    .btn-select,
-    .btn-barber,
-    .btn-save,
-    .btn-retry {
-        font-size: 20px;
-    }
-}
-
-@media (max-height: 700px) {
-    .upload {
-        gap: 8px;
-        padding-top: calc(10px + env(safe-area-inset-top, 0px));
-        padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
-    }
-
-    .upload-title {
-        font-size: clamp(46px, 12vw, 78px);
-        margin-bottom: 0;
-    }
-
-    .upload-guide {
-        gap: 6px;
-        margin-bottom: 0;
-    }
-
-    .upload-guide-card {
-        width: min(30vw, 116px);
-    }
-
-    .upload-frame {
-        width: min(40vw, 170px);
-    }
-
-    .upload-actions {
-        gap: 8px;
-        padding-top: 0;
-        padding-bottom: 0;
-        margin-top: 0;
-    }
-
-    .btn-take-photo {
-        padding: 14px 18px;
-    }
-
-    .btn-upload-photo {
-        padding: 10px 18px;
-    }
-
-    .loading-title {
-        margin-bottom: 10px;
-    }
-
-    .loading-frame {
-        width: min(56vw, 220px);
-    }
-
-    .loading-status {
-        margin-top: 16px;
-        margin-bottom: 8px;
-    }
-}
-
-@media (max-height: 620px) {
-    .upload-title {
-        font-size: clamp(40px, 11vw, 64px);
-    }
-
-    .upload-guide-card {
-        width: min(26vw, 102px);
-    }
-
-    .upload-frame {
-        width: min(36vw, 150px);
-    }
-
-    .upload-browser-note {
-        font-size: 9px;
-    }
-}
-
-@media (min-aspect-ratio: 9/16) {
-    .home-bg {
-        background-size: contain;
-        background-position: center top;
-    }
-}
-
-.hidden {
-    display: none !important;
-}
+    border-top: 1px sol
