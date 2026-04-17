@@ -88,15 +88,19 @@
   }
   a.cta:active{transform:scale(.985)}
   .hint{
-    font-size:12px;
+    font-size:12.5px;
     line-height:1.5;
-    color:rgba(243,239,227,0.5);
-    max-width:320px;
-    margin-top:2px;
+    color:rgba(243,239,227,0.82);
+    max-width:340px;
+    margin-top:6px;
+    padding:10px 14px;
+    border:1px solid rgba(215,245,76,0.28);
+    border-radius:10px;
+    background:rgba(8,20,16,0.42);
   }
-  .hint.bold{
-    color:rgba(215,245,76,0.92);
-    font-weight:600;
+  .hint b{
+    color:rgba(215,245,76,0.95);
+    font-weight:700;
   }
   .meta-row{
     display:flex;
@@ -139,19 +143,5 @@ fbq('track','PageView');
 </script>
 <noscript><img height="1" width="1" style="display:none"
 src="https://www.facebook.com/tr?id=1868174307106082&ev=PageView&noscript=1" alt=""/></noscript>
-
-<script>
-// Minimal enhancement: promote the "open in browser" hint inside Instagram /
-// Facebook in-app webviews. No heavy JS, no network calls, no PWA bootstrap.
-(function(){
-  try{
-    var ua=(navigator&&navigator.userAgent)||'';
-    if(/Instagram|FBAN|FBAV|FB_IAB/i.test(ua)){
-      var hint=document.getElementById('hint');
-      if(hint)hint.classList.add('bold');
-    }
-  }catch(e){/* best-effort only */}
-})();
-</script>
 </body>
 </html>
