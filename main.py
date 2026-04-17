@@ -13,7 +13,6 @@ Based on working prototype v4.5
 
 import os
 import json
-import re
 import base64
 import asyncio
 import time
@@ -875,37 +874,33 @@ async def parallel_preprocess(image_base64: str) -> Tuple[dict, str]:
 # API ROUTES
 # =============================================================================
 
-# Matches Instagram and Facebook in-app webviews. Kept at module scope so it
-# compiles once and stays in sync with the UA detection used in landing.html.
-IN_APP_BROWSER_UA_RE = re.compile(r"Instagram|FBAN|FBAV|FB_IAB", re.IGNORECASE)
-
-
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def root(request: Request):
     """Root entrypoint.
 
-    - Instagram / Facebook in-app webviews get a lightweight bridge page
-      (landing.html) that's safe to render inside those chokes-prone webviews
-      and explicitly prompts users to "Open in browser".
-    - All other user agents (Safari, Chrome, etc.) are redirected straight to
-      /app for the fastest possible path into the PWA.
+    Always serves the lightweight landing / bridge page. UA-based detection
+    proved flaky in the wild for Instagram/Facebook ad traffic, so for now
+    every visitor gets the same stable bridge page with a clear "Open
+    StyleLock" CTA into /app.
 
     Razorpay, /app, and every /api/* route are untouched.
     """
-    ua = request.headers.get("user-agent", "")
-    if IN_APP_BROWSER_UA_RE.search(ua):
-        response = templates.TemplateResponse(
-            request=request,
-            name="landing.html",
-            context={"app_version": APP_VERSION},
-        )
-        # Short cache so repeat ad clicks inside IG/FB stay snappy, but we can
-        # still ship quick updates during launch week.
-        response.headers["Cache-Control"] = "public, max-age=300"
-        return response
+    response = templates.TemplateResponse(
+        request=request,
+        name="landing.html",
+        context={"app_version": APP_VERSION},
+    )
+    # Short cache so repeat ad clicks stay snappy, but we can still ship
+    # quick updates during launch week.
+    response.headers["Cache-Control"] = "public, max-age=300"
+    return response
 
-    # Normal browsers: skip the bridge and go straight to the real app.
-    return RedirectResponse(url="/app", status_code=307)
+
+@app.get("/favicon.ico", include_in_schema=False)
+@app.get("/meta.json", include_in_schema=False)
+async def _silence_noisy_probes():
+    """Return no-content for common probes so Railway logs stay readable."""
+    return Response(status_code=204)
 
 
 @app.get("/apple-app-site-association", include_in_schema=False)
