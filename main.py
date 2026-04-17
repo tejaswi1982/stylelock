@@ -874,26 +874,23 @@ async def parallel_preprocess(image_base64: str) -> Tuple[dict, str]:
 # API ROUTES
 # =============================================================================
 
-@app.get("/", response_class=HTMLResponse, include_in_schema=False)
-async def root(request: Request):
-    """Root entrypoint.
-
-    Always serves the lightweight landing / bridge page. UA-based detection
-    proved flaky in the wild for Instagram/Facebook ad traffic, so for now
-    every visitor gets the same stable bridge page with a clear "Open
-    StyleLock" CTA into /app.
-
-    Razorpay, /app, and every /api/* route are untouched.
-    """
+def build_app_response(request: Request) -> HTMLResponse:
+    """Render the main StyleLock app shell."""
     response = templates.TemplateResponse(
         request=request,
-        name="landing.html",
+        name="app.html",
         context={"app_version": APP_VERSION},
     )
-    # Short cache so repeat ad clicks stay snappy, but we can still ship
-    # quick updates during launch week.
-    response.headers["Cache-Control"] = "public, max-age=300"
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
     return response
+
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+async def root(request: Request):
+    """Serve the main app directly at the root URL."""
+    return build_app_response(request)
 
 
 @app.get("/favicon.ico", include_in_schema=False)
@@ -979,15 +976,7 @@ async def debug():
 @app.get("/app", response_class=HTMLResponse)
 async def serve_app(request: Request):
     """Serve main app"""
-    response = templates.TemplateResponse(
-        request=request,
-        name="app.html",
-        context={"app_version": APP_VERSION}
-    )
-    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "0"
-    return response
+    return build_app_response(request)
 
 @app.post("/api/create-order")
 async def create_razorpay_order():
