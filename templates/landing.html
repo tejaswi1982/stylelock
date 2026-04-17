@@ -42,6 +42,13 @@
     align-items:center;
     gap:18px;
   }
+  .copy-wrap{
+    width:100%;
+    max-width:320px;
+    display:none;
+    flex-direction:column;
+    gap:10px;
+  }
   .mark{
     font-weight:700;
     font-size:12px;
@@ -65,6 +72,9 @@
   }
   a.cta{
     display:inline-flex;
+  }
+  button.cta{
+    display:inline-flex;
     align-items:center;
     justify-content:center;
     width:100%;
@@ -85,8 +95,36 @@
     margin-top:6px;
     -webkit-appearance:none;
     touch-action:manipulation;
+    cursor:pointer;
   }
-  a.cta:active{transform:scale(.985)}
+  a.cta:active,
+  button.cta:active{transform:scale(.985)}
+  .text-link{
+    font-size:13px;
+    line-height:1.4;
+    color:rgba(243,239,227,0.72);
+    text-decoration:underline;
+    text-underline-offset:2px;
+  }
+  .copy-status{
+    min-height:18px;
+    font-size:12px;
+    line-height:1.45;
+    color:rgba(215,245,76,0.92);
+  }
+  .manual-link{
+    display:none;
+    width:100%;
+    padding:10px 12px;
+    border-radius:10px;
+    border:1px solid rgba(243,239,227,0.14);
+    background:rgba(8,20,16,0.42);
+    color:rgba(243,239,227,0.88);
+    font-size:12px;
+    line-height:1.45;
+    word-break:break-all;
+    text-align:left;
+  }
   .hint{
     font-size:12.5px;
     line-height:1.5;
@@ -122,6 +160,12 @@
   <h1>Your next self, <span class="accent">unlocked.</span></h1>
   <p class="sub">Upload a selfie. See 3 hairstyle looks. Get a barber-ready cut card.</p>
   <a class="cta" href="/app" id="openBtn">Open StyleLock</a>
+  <div class="copy-wrap" id="copyWrap">
+    <button class="cta" type="button" id="copyBtn">Copy App Link</button>
+    <div class="copy-status" id="copyStatus" aria-live="polite"></div>
+    <div class="manual-link" id="manualLink">https://stylelock-production.up.railway.app/app</div>
+    <a class="text-link" href="/app" id="secondaryAppLink">Open /app anyway</a>
+  </div>
   <p class="hint" id="hint">If this opens oddly in Instagram, tap &#8226;&#8226;&#8226; and choose <b>Open in browser</b>.</p>
   <div class="meta-row">
     <span>AI</span><span class="dot"></span><span>Barber-ready</span><span class="dot"></span><span>Rs 79</span>
@@ -143,5 +187,58 @@ fbq('track','PageView');
 </script>
 <noscript><img height="1" width="1" style="display:none"
 src="https://www.facebook.com/tr?id=1868174307106082&ev=PageView&noscript=1" alt=""/></noscript>
+<script>
+(() => {
+  const APP_URL = 'https://stylelock-production.up.railway.app/app';
+  const IN_APP_REGEX = /(Instagram|FBAN|FBAV|FB_IAB|Messenger)/i;
+  const isMetaInAppBrowser = IN_APP_REGEX.test(window.navigator && window.navigator.userAgent ? window.navigator.userAgent : '');
+
+  const openBtn = document.getElementById('openBtn');
+  const copyWrap = document.getElementById('copyWrap');
+  const copyBtn = document.getElementById('copyBtn');
+  const copyStatus = document.getElementById('copyStatus');
+  const manualLink = document.getElementById('manualLink');
+  const hint = document.getElementById('hint');
+
+  if (isMetaInAppBrowser) {
+    if (openBtn) openBtn.style.display = 'none';
+    if (copyWrap) copyWrap.style.display = 'flex';
+    if (hint) {
+      hint.innerHTML = 'Instagram&#8217;s in-app browser may block the app. Tap &#8226;&#8226;&#8226; and choose <b>Open in browser</b>.';
+    }
+  } else {
+    if (copyWrap) copyWrap.style.display = 'none';
+  }
+
+  async function copyAppLink() {
+    if (!copyStatus || !manualLink) return;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(APP_URL);
+        copyStatus.textContent = 'App link copied.';
+        manualLink.style.display = 'none';
+        return;
+      }
+      throw new Error('Clipboard unavailable');
+    } catch (_err) {
+      copyStatus.textContent = 'Copy failed. Long-press the link below to copy it manually.';
+      manualLink.style.display = 'block';
+      try {
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(manualLink);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      } catch (_selectionErr) {
+        // no-op
+      }
+    }
+  }
+
+  if (copyBtn) {
+    copyBtn.addEventListener('click', copyAppLink, { passive: true });
+  }
+})();
+</script>
 </body>
 </html>
