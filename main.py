@@ -13,6 +13,7 @@ Based on working prototype v4.5
 
 import os
 import json
+import re
 import base64
 import asyncio
 import time
@@ -874,9 +875,36 @@ async def parallel_preprocess(image_base64: str) -> Tuple[dict, str]:
 # API ROUTES
 # =============================================================================
 
-@app.get("/", include_in_schema=False)
-async def root():
-    """Redirect root traffic to the app entrypoint."""
+# Matches Instagram and Facebook in-app webviews. Kept at module scope so it
+# compiles once and stays in sync with the UA detection used in landing.html.
+IN_APP_BROWSER_UA_RE = re.compile(r"Instagram|FBAN|FBAV|FB_IAB", re.IGNORECASE)
+
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+async def root(request: Request):
+    """Root entrypoint.
+
+    - Instagram / Facebook in-app webviews get a lightweight bridge page
+      (landing.html) that's safe to render inside those chokes-prone webviews
+      and explicitly prompts users to "Open in browser".
+    - All other user agents (Safari, Chrome, etc.) are redirected straight to
+      /app for the fastest possible path into the PWA.
+
+    Razorpay, /app, and every /api/* route are untouched.
+    """
+    ua = request.headers.get("user-agent", "")
+    if IN_APP_BROWSER_UA_RE.search(ua):
+        response = templates.TemplateResponse(
+            request=request,
+            name="landing.html",
+            context={"app_version": APP_VERSION},
+        )
+        # Short cache so repeat ad clicks inside IG/FB stay snappy, but we can
+        # still ship quick updates during launch week.
+        response.headers["Cache-Control"] = "public, max-age=300"
+        return response
+
+    # Normal browsers: skip the bridge and go straight to the real app.
     return RedirectResponse(url="/app", status_code=307)
 
 
@@ -1176,4 +1204,12 @@ async def generate_looks(request: Request):
 
 # =============================================================================
 # MAIN
-# ===========================================
+# =============================================================================
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 8000))
+    print(f"🚀 StyleLock AI v54 starting on port {port}")
+    print(f"   VMODEL API: {VMODEL_API_URL}")
+    print(f"   BG Removal: {'ENABLED' if ENABLE_BG_REMOVAL else 'DISABLED'}")
+    uvicorn.run(app, host="0.0.0.0", port=port)
