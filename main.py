@@ -26,7 +26,7 @@ from pathlib import Path
 import httpx
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -880,6 +880,13 @@ async def root():
     return RedirectResponse(url="/app", status_code=307)
 
 
+@app.get("/apple-app-site-association", include_in_schema=False)
+@app.get("/.well-known/apple-app-site-association", include_in_schema=False)
+async def apple_app_site_association_probe():
+    """Return no-content for Apple Universal Links probes; this app does not publish a native association file."""
+    return Response(status_code=204)
+
+
 @app.get("/api/health", response_class=JSONResponse)
 async def health_check():
     """Health check"""
@@ -1169,12 +1176,4 @@ async def generate_looks(request: Request):
 
 # =============================================================================
 # MAIN
-# =============================================================================
-
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.getenv("PORT", 8000))
-    print(f"🚀 StyleLock AI v54 starting on port {port}")
-    print(f"   VMODEL API: {VMODEL_API_URL}")
-    print(f"   BG Removal: {'ENABLED' if ENABLE_BG_REMOVAL else 'DISABLED'}")
-    uvicorn.run(app, host="0.0.0.0", port=port)
+# ===========================================
