@@ -42,7 +42,7 @@ RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "")
 REMOVEBG_API_KEY = os.getenv("REMOVEBG_API_KEY", "")
 FREEIMAGE_API_KEY = os.getenv("FREEIMAGE_API_KEY", "6d207e02198a847aa98d0a2a901485a5")
 ENABLE_BG_REMOVAL = os.getenv("ENABLE_BG_REMOVAL", "true").lower() == "true"
-APP_VERSION = os.getenv("APP_VERSION", "v54.4")
+APP_VERSION = os.getenv("APP_VERSION", "v54.5")
 PAYMENT_TOKEN_TTL_SECONDS = int(os.getenv("PAYMENT_TOKEN_TTL_SECONDS", "900"))
 
 # MVP payment auth store. Replace with Redis/database when multi-instance persistence is needed.
