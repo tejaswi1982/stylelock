@@ -1529,17 +1529,35 @@ body::before {
     }
 }
 
+/* ============================================================
+   DESKTOP / TABLET — phone canvas frame
+   Every screen (especially .home) is constrained to a centered
+   portrait panel; the surrounding viewport shows the body's
+   radial gradient as negative canvas. Mobile (<640px) untouched.
+   ============================================================ */
 @media (min-width: 640px) {
-    .screen {
-        top: 20px;
-        bottom: 20px;
+    html, body {
+        overflow: hidden;
+    }
+
+    body {
+        min-height: 100vh;
+        min-height: 100dvh;
+    }
+
+    html body .screen,
+    html body .screen.active {
+        position: fixed;
+        top: 50%;
         left: 50%;
         right: auto;
+        bottom: auto;
         width: min(430px, calc(100vw - 48px));
         height: min(calc(var(--app-height, 100dvh) - 40px), 860px);
         min-height: min(calc(var(--app-height, 100dvh) - 40px), 860px);
         max-height: min(calc(var(--app-height, 100dvh) - 40px), 860px);
-        transform: translateX(-50%);
+        max-width: 430px;
+        transform: translate(-50%, -50%);
         border-radius: 28px;
         border: 1px solid rgba(243, 239, 227, 0.12);
         box-shadow:
@@ -1548,32 +1566,5 @@ body::before {
         overflow: hidden;
     }
 
-    .home,
-    .upload,
-    .loading,
-    .error,
-    .results,
-    .cutcard,
-    .locked,
-    .barber {
-        height: 100%;
-        min-height: 100%;
-    }
-
-    .home {
-        overflow: hidden;
-        border-radius: inherit;
-    }
-
-    /* Override the global min-aspect-ratio rule: inside the desktop phone
-       canvas the frame is portrait, so cover behaves correctly and we want
-       the hero to fill the frame (not letterbox via `contain`). */
-    .home-bg {
-        background-size: cover !important;
-        background-position: center center !important;
-    }
-}
-
-.hidden {
-    display: none !important;
-}
+    html body .home,
+    html body .upl
