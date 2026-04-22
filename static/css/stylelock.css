@@ -1567,4 +1567,33 @@ body::before {
     }
 
     html body .home,
-    html body .upl
+    html body .upload,
+    html body .loading,
+    html body .error,
+    html body .results,
+    html body .cutcard,
+    html body .locked,
+    html body .barber {
+        height: 100%;
+        min-height: 100%;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    html body .home {
+        overflow: hidden;
+        border-radius: inherit;
+    }
+
+    /* Override the global `@media (min-aspect-ratio: 9/16)` rule —
+       inside the desktop phone canvas we want cover, not contain. */
+    html body .home-bg {
+        background-size: cover !important;
+        background-position: center center !important;
+        border-radius: inherit;
+    }
+}
+
+.hidden {
+    display: none !important;
+}
