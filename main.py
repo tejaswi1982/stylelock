@@ -889,18 +889,10 @@ def build_app_response(request: Request) -> HTMLResponse:
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def root(request: Request):
-    """Serve the marketing landing page (trust stack) at the root URL.
-    The actual PWA lives at /app. Ad traffic hits / first; CTA buttons
-    on the landing page route users to /app."""
-    response = templates.TemplateResponse(
-        request=request,
-        name="landing.html",
-        context={"app_version": APP_VERSION},
-    )
+    """Serve the actual app directly at the root URL."""
+    return build_app_response(request)
     # Landing is marketing copy + static trust-stack — safe to cache briefly
     # at the edge. 5 minutes is short enough that copy changes propagate fast.
-    response.headers["Cache-Control"] = "public, max-age=300"
-    return response
 
 
 @app.get("/favicon.ico", include_in_schema=False)
