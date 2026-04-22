@@ -24,6 +24,47 @@ const META_INITIATE_CHECKOUT_KEY = 'stylelock_meta_initiate_checkout_order';
 const META_PURCHASE_KEY = 'stylelock_meta_purchase_payment';
 const META_IN_APP_BROWSER_REGEX = /(Instagram|FBAN|FBAV|FB_IAB|Messenger)/i;
 
+// ---------- Custom event tracking (Meta Pixel trackCustom) ----------
+// Session ID is shared with landing.html via sessionStorage (key `sl_sid`), so a
+// user's full journey Landing → Upload → Pay → Cut Card joins up in Events Manager.
+function slSessionId() {
+    try {
+        let sid = sessionStorage.getItem('sl_sid');
+        if (!sid) {
+            sid = (window.crypto && typeof window.crypto.randomUUID === 'function')
+                ? window.crypto.randomUUID()
+                : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                    const r = Math.random() * 16 | 0;
+                    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
+            sessionStorage.setItem('sl_sid', sid);
+        }
+        return sid;
+    } catch (_e) { return 'nosession'; }
+}
+function slTrack(event, extra) {
+    try {
+        const payload = Object.assign({ session_id: slSessionId() }, extra || {});
+        if (window.fbq) window.fbq('trackCustom', event, payload);
+        if (window.console && console.debug) console.debug('[sl-track]', event, payload);
+    } catch (_err) {}
+}
+window.__slTrack = slTrack;
+
+// Map look index to its canonical tier label for event attribution.
+function slLookTier(idx) {
+    try {
+        const look = results && results.looks && results.looks[idx];
+        if (!look) return 'unknown';
+        const tier = String(look.tier || '').toUpperCase();
+        if (tier === 'TRENDING' || tier === 'CLEAN' || tier === 'BOLD') return tier.toLowerCase();
+        // Fallback: hero = 'hero', others = by position
+        const heroIdx = typeof getMostAchievableIndex === 'function' ? getMostAchievableIndex(results.looks) : 0;
+        return idx === heroIdx ? 'hero' : 'secondary';
+    } catch (_e) { return 'unknown'; }
+}
+
 const TIER_ORDER = ['BOLD', 'CLEAN', 'TRENDING'];
 const LOADING_TITLES = ['READING', 'SCANNING', 'MATCHING', 'LOADING'];
 const LOADING_CAPTIONS = [
@@ -364,6 +405,12 @@ function goHome() {
     bootToHome();
 }
 
+function startOver() {
+    slTrack('start_over_clicked');
+    bootToHome();
+}
+window.startOver = startOver;
+
 function showUserError(message) {
     byId('errorText').textContent = message || 'Something went wrong';
     show('errorScreen');
@@ -450,6 +497,7 @@ async function startPayment() {
                     }
 
                     trackPurchase(paymentResponse.razorpay_payment_id);
+                    slTrack('payment_successful', { payment_id: paymentResponse.razorpay_payment_id });
                     generate(verifyData.payment_token);
                 } catch (verifyErr) {
                     console.error('Payment verification error:', verifyErr);
@@ -470,6 +518,7 @@ async function startPayment() {
         rzp.on('payment.failed', function () {
             showUserError('Payment failed');
         });
+        slTrack('payment_initiated');
         rzp.open();
     } catch (err) {
         console.error('Payment error:', err);
@@ -678,6 +727,8 @@ function renderResults() {
         return;
     }
 
+    slTrack('looks_shown', { count: looks.length });
+
     const heroIdx = getMostAchievableIndex(looks);
     const heroLook = looks[heroIdx];
     const supportingLooks = looks
@@ -788,6 +839,8 @@ function renderCutcard(idx) {
     }
 
     currentLookIdx = idx;
+    slTrack('look_expanded', { look: slLookTier(idx), idx: idx });
+    slTrack('cut_card_viewed', { look: slLookTier(idx), idx: idx });
     persistResultsState();
     byId('cutcardContent').innerHTML = `
         <article class="cutcard-main ${tierClass(look.tier)}">
@@ -857,7 +910,12 @@ function openLockedPreview(idx, showStamp) {
     }
 
     currentLookIdx = idx;
-    lockedStampVisible = !!showStamp;
+    // The LOCKED badge should only appear on the hero look (MOST ACHIEVABLE / TRENDING).
+    // On secondary expanded views (CLEAN / BOLD), the badge is visually redundant —
+    // all three looks are already paid for at this point in the flow.
+    const heroIdx = Array.isArray(results?.looks) ? getMostAchievableIndex(results.looks) : 0;
+    const isHero = idx === heroIdx;
+    lockedStampVisible = !!showStamp && isHero;
     byId('lockedPhoto').src = look.image || '';
     persistResultsState();
 
@@ -938,6 +996,7 @@ function handleImage(event) {
         byId('uploadPlaceholder').style.display = 'none';
         byId('loadingSelfie').src = dataUrl;
 
+        slTrack('selfie_uploaded');
         setTimeout(() => startPayment(), 260);
     };
 
