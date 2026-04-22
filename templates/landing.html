@@ -7,172 +7,388 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>StyleLock — Your next self, unlocked</title>
-<meta name="description" content="Upload a selfie. See 3 hairstyle looks. Get a barber-ready cut card.">
+<meta name="description" content="One selfie. Three hairstyle looks. A spec sheet for your barber. ₹79.">
 <meta property="og:title" content="StyleLock — Your next self, unlocked">
-<meta property="og:description" content="Upload a selfie. See 3 hairstyle looks. Get a barber-ready cut card.">
+<meta property="og:description" content="One selfie. Three hairstyle looks. A spec sheet for your barber. ₹79.">
 <meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Caveat:wght@500;700&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Microsoft Clarity -->
+<script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "wfm383252y");
+</script>
 <style>
-  /* Inline-only CSS — zero external deps for fastest Instagram/FB webview load. */
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{width:100%;min-height:100%}
+  html,body{width:100%;min-height:100%;background:#081712}
   body{
-    font-family:-apple-system,BlinkMacSystemFont,system-ui,"Segoe UI",Roboto,sans-serif;
-    background:radial-gradient(120% 100% at 50% 4%,#1e463c 0%,#102821 43%,#091712 100%);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,system-ui,"Segoe UI",Roboto,sans-serif;
     color:#f3efe3;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  :root{
+    --volt:#c8e600;
+    --volt-soft:#d7f54c;
+    --cream:#f3efe3;
+    --cream-dim:rgba(243,239,227,0.72);
+    --ink-muted:rgba(243,239,227,0.56);
+    --bg-dark:#10241f;
+    --bg-deeper:#081712;
+    --card:#14332b;
+    --card-hi:#1a3f36;
+    --line:rgba(243,239,227,0.12);
+  }
+
+  /* ---------- HERO (unchanged visual language) ---------- */
+  .hero{
+    position:relative;
+    width:100%;
     min-height:100vh;
     min-height:100svh;
     min-height:100dvh;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
+    background:#0d211d url('/static/images/home-hero-latest.jpg?v={{ app_version }}') center center / cover no-repeat;
+    overflow:hidden;
+    display:flex;flex-direction:column;justify-content:flex-end;
     padding:
       calc(28px + env(safe-area-inset-top,0px))
       max(22px,env(safe-area-inset-right,0px))
-      calc(28px + env(safe-area-inset-bottom,0px))
+      calc(34px + env(safe-area-inset-bottom,0px))
       max(22px,env(safe-area-inset-left,0px));
-    text-align:center;
-    -webkit-font-smoothing:antialiased;
   }
-  .wrap{
-    width:100%;
-    max-width:420px;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap:18px;
+  .hero::after{
+    content:'';position:absolute;left:0;right:0;bottom:0;height:24%;
+    background:linear-gradient(to top,rgba(8,18,15,0.72),rgba(8,18,15,0));
+    pointer-events:none;z-index:1;
   }
-  .copy-wrap{
-    width:100%;
-    max-width:320px;
-    display:none;
-    flex-direction:column;
-    gap:10px;
+  .hero-cta-wrap{
+    position:relative;z-index:2;
+    display:flex;flex-direction:column;align-items:center;gap:10px;width:100%;
   }
-  .mark{
-    font-weight:700;
-    font-size:12px;
-    letter-spacing:0.4em;
-    color:#d7f54c;
-    text-transform:uppercase;
+  .hero-bars{display:flex;gap:10px;justify-content:center;margin-bottom:14px}
+  .hero-bars span{
+    width:62px;height:3px;border-radius:999px;background:rgba(243,239,227,0.2);
+    position:relative;overflow:hidden;
   }
-  h1{
-    font-size:clamp(30px,8.2vw,42px);
-    line-height:1.05;
-    font-weight:700;
-    letter-spacing:-0.01em;
-    color:rgba(243,239,227,0.98);
+  .hero-bars span.active::after{
+    content:'';position:absolute;inset:0;width:100%;
+    background:linear-gradient(90deg,var(--volt),#f0ffc1);
+    box-shadow:0 0 10px rgba(200,230,0,0.5);
   }
-  h1 .accent{color:#d7f54c}
-  p.sub{
-    font-size:15px;
-    line-height:1.5;
-    color:rgba(243,239,227,0.74);
-    max-width:360px;
-  }
-  a.cta{
-    display:inline-flex;
-  }
-  button.cta{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    width:100%;
-    max-width:320px;
-    padding:17px 22px;
-    border-radius:14px;
-    font-family:inherit;
-    font-size:17px;
-    font-weight:700;
-    letter-spacing:0.08em;
-    text-transform:uppercase;
-    text-decoration:none;
+
+  /* ---------- SHARED CTA ---------- */
+  .cta{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:min(320px,82%);padding:18px 22px;border-radius:14px;
+    font-family:'Inter',sans-serif;font-size:16px;font-weight:700;
+    letter-spacing:0.14em;text-transform:uppercase;text-decoration:none;
     color:#10221c;
     background:linear-gradient(180deg,#d9f74f 0%,#bfde1a 100%);
     border:1px solid rgba(200,230,0,0.68);
     box-shadow:0 10px 22px rgba(0,0,0,0.32),0 0 22px rgba(200,230,0,0.18);
     transition:transform .18s ease;
-    margin-top:6px;
-    -webkit-appearance:none;
-    touch-action:manipulation;
-    cursor:pointer;
+    -webkit-appearance:none;touch-action:manipulation;cursor:pointer;
   }
-  a.cta:active,
-  button.cta:active{transform:scale(.985)}
-  .text-link{
-    font-size:13px;
-    line-height:1.4;
-    color:rgba(243,239,227,0.72);
-    text-decoration:underline;
-    text-underline-offset:2px;
+  .cta:active{transform:scale(.985)}
+  .cta-sub{
+    font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.12em;
+    color:var(--cream-dim);margin-top:6px;text-transform:uppercase;
   }
-  .copy-status{
-    min-height:18px;
-    font-size:12px;
-    line-height:1.45;
-    color:rgba(215,245,76,0.92);
+
+  /* ---------- SECTION FRAME ---------- */
+  section.block{background:#0d211d;padding:64px 24px;position:relative}
+  section.block:nth-of-type(even){background:#0b1d18}
+  .block-inner{max-width:480px;margin:0 auto}
+  .eyebrow{
+    font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.3em;
+    color:var(--volt-soft);text-transform:uppercase;margin-bottom:14px;
   }
+  h2.display{
+    font-family:'Bebas Neue','Inter',sans-serif;
+    font-size:clamp(34px,8.8vw,48px);line-height:1.02;letter-spacing:0.01em;
+    color:var(--cream);margin-bottom:18px;
+  }
+  h2.display .accent{color:var(--volt-soft)}
+  p.body{font-size:15.5px;line-height:1.58;color:var(--cream-dim);margin-bottom:14px}
+  .lime-line{
+    display:inline-block;font-family:'Space Mono',monospace;font-size:12.5px;
+    letter-spacing:0.16em;color:var(--volt-soft);text-transform:uppercase;margin-top:6px;
+  }
+
+  /* ---------- CARDS ---------- */
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:18px;
+    padding:22px 20px 24px;margin-top:14px;position:relative;overflow:hidden;
+  }
+  .card-num{
+    font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.24em;
+    color:var(--volt-soft);text-transform:uppercase;margin-bottom:10px;
+  }
+  .card h3{
+    font-family:'Bebas Neue','Inter',sans-serif;font-size:26px;letter-spacing:0.02em;
+    color:var(--cream);margin-bottom:10px;
+  }
+  .card p{
+    font-family:'Space Mono',monospace;font-size:12.5px;line-height:1.6;
+    color:var(--cream-dim);letter-spacing:0.01em;
+  }
+
+  /* ---------- CUT CARD PREVIEW ---------- */
+  .cutcard-preview{
+    margin:18px auto 0;transform:rotate(-2.2deg);transform-origin:center;border-radius:14px;
+    background:linear-gradient(180deg,#163831 0%,#0f2a24 100%);
+    border:1px solid rgba(215,245,76,0.22);
+    box-shadow:0 18px 36px rgba(0,0,0,0.44),0 0 0 1px rgba(215,245,76,0.06) inset;
+    padding:16px 18px 18px;max-width:min(92%,360px);overflow:hidden;position:relative;
+  }
+  .cutcard-preview::after{
+    content:'';position:absolute;left:0;right:0;bottom:0;height:30%;
+    background:linear-gradient(to top,rgba(15,42,36,0.92),rgba(15,42,36,0));
+    pointer-events:none;
+  }
+  .cutcard-preview .cp-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+  .cutcard-preview .cp-title{font-family:'Bebas Neue','Inter',sans-serif;font-size:15px;letter-spacing:0.18em;color:var(--volt-soft)}
+  .cutcard-preview .cp-id{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.14em;color:var(--cream-dim)}
+  .cutcard-preview .cp-row{display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px dashed rgba(243,239,227,0.1)}
+  .cutcard-preview .cp-row:last-child{border-bottom:none}
+  .cutcard-preview .cp-k{font-family:'Space Mono',monospace;font-size:10.5px;letter-spacing:0.16em;color:var(--ink-muted);text-transform:uppercase}
+  .cutcard-preview .cp-v{font-family:'Space Mono',monospace;font-size:11.5px;color:var(--cream);text-align:right;font-weight:700}
+  .cutcard-caption{
+    display:block;text-align:center;font-family:'Space Mono',monospace;
+    font-size:10.5px;letter-spacing:0.2em;color:var(--ink-muted);margin-top:14px;text-transform:uppercase;
+  }
+
+  /* ---------- PROOF ---------- */
+  .proof-scroll{
+    display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;
+    padding:6px 24px 14px;-webkit-overflow-scrolling:touch;scrollbar-width:none;
+  }
+  .proof-scroll::-webkit-scrollbar{display:none}
+  .proof-card{
+    flex:0 0 78%;max-width:280px;scroll-snap-align:center;
+    background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;
+  }
+  .proof-pair{display:grid;grid-template-columns:1fr 1fr;gap:2px;background:var(--line);aspect-ratio:2/1.2}
+  .proof-pair > div{
+    background:#0f2a24 center center / cover no-repeat;position:relative;min-height:120px;
+  }
+  .proof-pair > div::after{
+    content:attr(data-label);
+    position:absolute;top:8px;left:8px;
+    font-family:'Space Mono',monospace;font-size:9.5px;letter-spacing:0.2em;
+    color:var(--volt-soft);text-transform:uppercase;
+    background:rgba(8,18,15,0.68);padding:3px 7px;border-radius:4px;
+  }
+  .proof-meta{display:flex;justify-content:space-between;align-items:center;padding:12px 14px}
+  .proof-initials{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.18em;color:var(--cream)}
+  .proof-tier{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.2em;color:var(--volt-soft);text-transform:uppercase}
+  .proof-hint{text-align:center;font-family:'Space Mono',monospace;font-size:10.5px;letter-spacing:0.18em;color:var(--ink-muted);text-transform:uppercase;margin-top:4px}
+
+  /* ---------- MATH ---------- */
+  .math-grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:8px}
+  @media(min-width:560px){.math-grid{grid-template-columns:1fr 1fr}}
+  .math-col{border-radius:16px;padding:20px 18px;background:var(--card);border:1px solid var(--line)}
+  .math-col.bad{opacity:0.78}
+  .math-col.good{
+    background:linear-gradient(180deg,rgba(215,245,76,0.08),rgba(215,245,76,0.02));
+    border-color:rgba(215,245,76,0.32);
+  }
+  .math-label{font-family:'Space Mono',monospace;font-size:10.5px;letter-spacing:0.24em;color:var(--ink-muted);text-transform:uppercase;margin-bottom:10px}
+  .math-col.good .math-label{color:var(--volt-soft)}
+  .math-col p{font-size:14px;line-height:1.55;color:var(--cream-dim)}
+  .math-col strong{color:var(--cream);font-weight:700}
+  .math-col.good strong{color:var(--volt-soft)}
+  .math-closer{font-family:'Space Mono',monospace;font-size:12px;letter-spacing:0.14em;color:var(--cream-dim);text-align:center;margin-top:20px}
+
+  /* ---------- SECOND CTA ---------- */
+  .cta-block{
+    text-align:center;
+    background:radial-gradient(110% 90% at 50% 10%,#20483f 0%,#10241f 55%,#081713 100%);
+    padding:72px 24px 80px;
+  }
+  .cta-block .cta{margin:0 auto}
+
+  /* ---------- INSTAGRAM COPY FALLBACK ---------- */
+  .copy-wrap{
+    width:100%;max-width:320px;display:none;flex-direction:column;gap:10px;margin-top:14px;align-items:center;
+  }
+  .copy-status{min-height:18px;font-size:12px;color:var(--volt-soft);text-align:center}
   .manual-link{
-    display:none;
-    width:100%;
-    padding:10px 12px;
-    border-radius:10px;
-    border:1px solid rgba(243,239,227,0.14);
-    background:rgba(8,20,16,0.42);
-    color:rgba(243,239,227,0.88);
-    font-size:12px;
-    line-height:1.45;
-    word-break:break-all;
-    text-align:left;
+    display:none;width:100%;padding:10px 12px;border-radius:10px;
+    border:1px solid rgba(243,239,227,0.14);background:rgba(8,20,16,0.42);
+    color:rgba(243,239,227,0.88);font-size:12px;word-break:break-all;text-align:left;
   }
-  .hint{
-    font-size:12.5px;
-    line-height:1.5;
-    color:rgba(243,239,227,0.82);
-    max-width:340px;
-    margin-top:6px;
-    padding:10px 14px;
-    border:1px solid rgba(215,245,76,0.28);
-    border-radius:10px;
-    background:rgba(8,20,16,0.42);
+  .browser-hint{
+    font-family:'Space Mono',monospace;font-size:11px;line-height:1.5;letter-spacing:0.08em;
+    color:var(--cream-dim);max-width:320px;margin:18px auto 0;
+    padding:10px 14px;border:1px solid rgba(215,245,76,0.22);border-radius:10px;
+    background:rgba(8,20,16,0.42);text-align:center;text-transform:uppercase;
   }
-  .hint b{
-    color:rgba(215,245,76,0.95);
-    font-weight:700;
-  }
-  .meta-row{
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    gap:8px;
-    font-size:11px;
-    color:rgba(243,239,227,0.42);
-    letter-spacing:0.06em;
-    text-transform:uppercase;
-    margin-top:2px;
-  }
-  .dot{width:3px;height:3px;border-radius:50%;background:rgba(215,245,76,0.6)}
+  .browser-hint b{color:var(--volt-soft);font-weight:700}
+
+  /* ---------- FOOTER ---------- */
+  footer.foot{background:#070f0c;padding:28px 24px 38px;text-align:center;border-top:1px solid rgba(243,239,227,0.06)}
+  .foot-contact{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.16em;color:var(--cream-dim);text-transform:uppercase;margin-bottom:10px}
+  .foot-contact a{color:var(--volt-soft);text-decoration:none}
+  .foot-sig{font-family:'Space Mono',monospace;font-size:10.5px;letter-spacing:0.28em;color:var(--ink-muted);text-transform:uppercase}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="mark">StyleLock</div>
-  <h1>Your next self, <span class="accent">unlocked.</span></h1>
-  <p class="sub">Upload a selfie. See 3 hairstyle looks. Get a barber-ready cut card.</p>
-  <a class="cta" href="/app" id="openBtn">Open StyleLock</a>
-  <div class="copy-wrap" id="copyWrap">
-    <button class="cta" type="button" id="copyBtn">Copy App Link</button>
-    <div class="copy-status" id="copyStatus" aria-live="polite"></div>
-    <div class="manual-link" id="manualLink">https://stylelock-production.up.railway.app/app</div>
-    <a class="text-link" href="/app" id="secondaryAppLink">Open /app anyway</a>
-  </div>
-  <p class="hint" id="hint">If this opens oddly in Instagram, tap &#8226;&#8226;&#8226; and choose <b>Open in browser</b>.</p>
-  <div class="meta-row">
-    <span>AI</span><span class="dot"></span><span>Barber-ready</span><span class="dot"></span><span>Rs 79</span>
-  </div>
-</div>
 
-<!-- Meta Pixel — same account as main app, for PageView continuity on ad traffic. -->
+<!-- =============== SECTION 1: HERO (unchanged) =============== -->
+<section class="hero" id="heroSection">
+  <div class="hero-cta-wrap">
+    <div class="hero-bars" aria-hidden="true">
+      <span></span><span class="active"></span><span></span>
+    </div>
+    <a class="cta" href="/app" id="heroCta" data-cta="hero">UNLOCK IT</a>
+    <div class="cta-sub">One selfie · 60 seconds · ₹79 once</div>
+    <div class="copy-wrap" id="copyWrap">
+      <button class="cta" type="button" id="copyBtn" style="width:100%">Copy App Link</button>
+      <div class="copy-status" id="copyStatus" aria-live="polite"></div>
+      <div class="manual-link" id="manualLink">https://www.stylelock.in/app</div>
+    </div>
+  </div>
+</section>
+
+<!-- =============== SECTION 2: PERSONA =============== -->
+<section class="block" id="personaSection">
+  <div class="block-inner">
+    <div class="eyebrow">// Built for</div>
+    <h2 class="display">FOR THE GUY <span class="accent">WHO NOTICES.</span></h2>
+    <p class="body">You've been getting the same haircut for two years because you don't know how to ask for something different. You've saved photos of haircuts you liked &mdash; then shown them to your barber and gotten something else. You're not vain. You just want to look like the version of yourself you already are in your head.</p>
+    <span class="lime-line">StyleLock is for you.</span>
+  </div>
+</section>
+
+<!-- =============== SECTION 3: WHAT YOU GET =============== -->
+<section class="block" id="whatYouGetSection">
+  <div class="block-inner">
+    <div class="eyebrow">// Here's what you actually get</div>
+    <h2 class="display">THREE THINGS. <span class="accent">NO NOISE.</span></h2>
+
+    <div class="card">
+      <div class="card-num">01 &mdash; Your 3 looks</div>
+      <h3>CHOSEN, NOT FILTERED.</h3>
+      <p>Chosen for your face, hair, and what's working right now. Not 100 filters. 3 picks.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-num">02 &mdash; Your Cut Card</div>
+      <h3>THE SPEC SHEET.</h3>
+      <p>The exact spec sheet to show your barber. Sides, top, texture, fringe, styling, products. No more "just trim it."</p>
+
+      <div class="cutcard-preview" aria-label="Cut Card preview">
+        <div class="cp-head">
+          <span class="cp-title">IDENTITY CUT CARD</span>
+          <span class="cp-id">// 002</span>
+        </div>
+        <div class="cp-row"><span class="cp-k">Sides</span><span class="cp-v">Taper · 1 → 3</span></div>
+        <div class="cp-row"><span class="cp-k">Top</span><span class="cp-v">4.5 cm textured</span></div>
+        <div class="cp-row"><span class="cp-k">Fringe</span><span class="cp-v">Forward, soft</span></div>
+        <div class="cp-row"><span class="cp-k">Texture</span><span class="cp-v">Point-cut</span></div>
+        <div class="cp-row"><span class="cp-k">Styling</span><span class="cp-v">Matte paste</span></div>
+      </div>
+      <span class="cutcard-caption">&mdash; Show this at the chair &mdash;</span>
+    </div>
+
+    <div class="card">
+      <div class="card-num">03 &mdash; 60 seconds</div>
+      <h3>THAT'S IT.</h3>
+      <p>One selfie. Three looks. One card to take to the chair.</p>
+    </div>
+  </div>
+</section>
+
+<!-- =============== SECTION 4: PROOF ===============
+     REPLACE placeholder images below with real before/after pairs in
+     /static/images/proof/u{1-5}-{before|after}.jpg once uploaded. -->
+<section class="block" id="proofSection">
+  <div class="block-inner">
+    <div class="eyebrow">// Proof</div>
+    <h2 class="display">REAL MEN. <span class="accent">REAL LOOKS.</span></h2>
+  </div>
+  <div class="proof-scroll" id="proofScroll">
+    <div class="proof-card">
+      <div class="proof-pair">
+        <div data-label="BEFORE" style="background-image:url('/static/images/proof/u1-before.jpg?v={{ app_version }}')"></div>
+        <div data-label="AFTER"  style="background-image:url('/static/images/proof/u1-after.jpg?v={{ app_version }}')"></div>
+      </div>
+      <div class="proof-meta"><span class="proof-initials">&mdash; A.K.</span><span class="proof-tier">TRENDING</span></div>
+    </div>
+    <div class="proof-card">
+      <div class="proof-pair">
+        <div data-label="BEFORE" style="background-image:url('/static/images/proof/u2-before.jpg?v={{ app_version }}')"></div>
+        <div data-label="AFTER"  style="background-image:url('/static/images/proof/u2-after.jpg?v={{ app_version }}')"></div>
+      </div>
+      <div class="proof-meta"><span class="proof-initials">&mdash; R.S.</span><span class="proof-tier">CLEAN</span></div>
+    </div>
+    <div class="proof-card">
+      <div class="proof-pair">
+        <div data-label="BEFORE" style="background-image:url('/static/images/proof/u3-before.jpg?v={{ app_version }}')"></div>
+        <div data-label="AFTER"  style="background-image:url('/static/images/proof/u3-after.jpg?v={{ app_version }}')"></div>
+      </div>
+      <div class="proof-meta"><span class="proof-initials">&mdash; V.M.</span><span class="proof-tier">BOLD</span></div>
+    </div>
+    <div class="proof-card">
+      <div class="proof-pair">
+        <div data-label="BEFORE" style="background-image:url('/static/images/proof/u4-before.jpg?v={{ app_version }}')"></div>
+        <div data-label="AFTER"  style="background-image:url('/static/images/proof/u4-after.jpg?v={{ app_version }}')"></div>
+      </div>
+      <div class="proof-meta"><span class="proof-initials">&mdash; N.P.</span><span class="proof-tier">TRENDING</span></div>
+    </div>
+    <div class="proof-card">
+      <div class="proof-pair">
+        <div data-label="BEFORE" style="background-image:url('/static/images/proof/u5-before.jpg?v={{ app_version }}')"></div>
+        <div data-label="AFTER"  style="background-image:url('/static/images/proof/u5-after.jpg?v={{ app_version }}')"></div>
+      </div>
+      <div class="proof-meta"><span class="proof-initials">&mdash; S.J.</span><span class="proof-tier">CLEAN</span></div>
+    </div>
+  </div>
+  <p class="proof-hint">&mdash; Swipe &mdash;</p>
+</section>
+
+<!-- =============== SECTION 5: MATH =============== -->
+<section class="block" id="mathSection">
+  <div class="block-inner">
+    <div class="eyebrow">// The math</div>
+    <h2 class="display">₹79. <span class="accent">HERE'S THE MATH.</span></h2>
+
+    <div class="math-grid">
+      <div class="math-col bad">
+        <div class="math-label">Without StyleLock</div>
+        <p>Bad haircut: ₹400&ndash;600. Three weeks of feeling off. Another ₹400&ndash;600 to fix it.</p>
+        <p style="margin-top:10px"><strong>Total: ₹800&ndash;1,200.</strong></p>
+      </div>
+      <div class="math-col good">
+        <div class="math-label">With StyleLock</div>
+        <p>₹79. One selfie. Three looks. One spec sheet for your barber.</p>
+        <p style="margin-top:10px"><strong>Total: ₹79.</strong></p>
+      </div>
+    </div>
+
+    <p class="math-closer">&mdash; Less than a coffee. More than a haircut is worth risking. &mdash;</p>
+  </div>
+</section>
+
+<!-- =============== SECTION 6: SECOND CTA =============== -->
+<section class="cta-block" id="ctaBlock">
+  <a class="cta" href="/app" id="footerCta" data-cta="footer">UNLOCK IT</a>
+  <div class="cta-sub">One selfie · 60 seconds · ₹79 once</div>
+  <p class="browser-hint" id="browserHint">If this opens oddly in Instagram, tap &#8226;&#8226;&#8226; and choose <b>Open in browser</b>.</p>
+</section>
+
+<!-- =============== FOOTER =============== -->
+<footer class="foot">
+  <div class="foot-contact">Questions? <a href="mailto:hello@stylelock.in">hello@stylelock.in</a></div>
+  <div class="foot-sig">STYLELOCK &nbsp;//&nbsp; IDENTITY &nbsp;//&nbsp; '26</div>
+</footer>
+
+<!-- ============ META PIXEL ============ -->
 <script>
 !function(f,b,e,v,n,t,s)
 {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
@@ -187,56 +403,128 @@ fbq('track','PageView');
 </script>
 <noscript><img height="1" width="1" style="display:none"
 src="https://www.facebook.com/tr?id=1868174307106082&ev=PageView&noscript=1" alt=""/></noscript>
+
+<!-- ============ CUSTOM EVENTS + INSTAGRAM HANDLING ============ -->
 <script>
 (() => {
-  const APP_URL = 'https://stylelock-production.up.railway.app/app';
-  const IN_APP_REGEX = /(Instagram|FBAN|FBAV|FB_IAB|Messenger)/i;
-  const isMetaInAppBrowser = IN_APP_REGEX.test(window.navigator && window.navigator.userAgent ? window.navigator.userAgent : '');
+  // ---------- SESSION ID ----------
+  function uuid() {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+  let sid;
+  try {
+    sid = sessionStorage.getItem('sl_sid') || uuid();
+    sessionStorage.setItem('sl_sid', sid);
+  } catch (_e) { sid = uuid(); }
 
-  const openBtn = document.getElementById('openBtn');
+  function track(event, extra) {
+    try {
+      const payload = Object.assign({ session_id: sid }, extra || {});
+      if (window.fbq) window.fbq('trackCustom', event, payload);
+      if (window.console && console.debug) console.debug('[sl-track]', event, payload);
+    } catch (_err) {}
+  }
+  window.__slTrack = track;
+
+  // ---------- landing_viewed ----------
+  track('landing_viewed', { path: window.location.pathname });
+
+  // ---------- SCROLL MILESTONES ----------
+  const fired = {};
+  function fireOnce(name, extra) {
+    if (fired[name]) return;
+    fired[name] = true;
+    track(name, extra);
+  }
+
+  if ('IntersectionObserver' in window) {
+    const hero = document.getElementById('heroSection');
+    const ctaBlock = document.getElementById('ctaBlock');
+
+    if (hero) {
+      const heroObs = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (!entry.isIntersecting && entry.boundingClientRect.top < 0) {
+            fireOnce('landing_scrolled_past_hero');
+          }
+        });
+      }, { threshold: 0 });
+      heroObs.observe(hero);
+    }
+
+    if (ctaBlock) {
+      const ctaObs = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting && entry.intersectionRatio > 0.25) {
+            fireOnce('landing_scrolled_to_cta_2');
+          }
+        });
+      }, { threshold: [0, 0.25, 0.5] });
+      ctaObs.observe(ctaBlock);
+    }
+  } else {
+    window.addEventListener('scroll', () => {
+      const y = window.scrollY || window.pageYOffset;
+      const vh = window.innerHeight;
+      if (y > vh * 0.9) fireOnce('landing_scrolled_past_hero');
+      const ctaEl = document.getElementById('ctaBlock');
+      if (ctaEl) {
+        const rect = ctaEl.getBoundingClientRect();
+        if (rect.top < vh * 0.75) fireOnce('landing_scrolled_to_cta_2');
+      }
+    }, { passive: true });
+  }
+
+  // ---------- CTA CLICKS ----------
+  document.querySelectorAll('[data-cta]').forEach(el => {
+    el.addEventListener('click', () => {
+      track('cta_clicked', { position: el.getAttribute('data-cta') || 'unknown' });
+    }, { passive: true });
+  });
+
+  // ---------- INSTAGRAM / FB IN-APP BROWSER ----------
+  const APP_URL = 'https://www.stylelock.in/app';
+  const IN_APP_REGEX = /(Instagram|FBAN|FBAV|FB_IAB|Messenger)/i;
+  const isMeta = IN_APP_REGEX.test(navigator.userAgent || '');
   const copyWrap = document.getElementById('copyWrap');
   const copyBtn = document.getElementById('copyBtn');
   const copyStatus = document.getElementById('copyStatus');
   const manualLink = document.getElementById('manualLink');
-  const hint = document.getElementById('hint');
+  const browserHint = document.getElementById('browserHint');
 
-  if (isMetaInAppBrowser) {
-    if (openBtn) openBtn.style.display = 'none';
+  if (isMeta) {
     if (copyWrap) copyWrap.style.display = 'flex';
-    if (hint) {
-      hint.innerHTML = 'Instagram&#8217;s in-app browser may block the app. Tap &#8226;&#8226;&#8226; and choose <b>Open in browser</b>.';
-    }
-  } else {
-    if (copyWrap) copyWrap.style.display = 'none';
-  }
-
-  async function copyAppLink() {
-    if (!copyStatus || !manualLink) return;
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(APP_URL);
-        copyStatus.textContent = 'App link copied.';
-        manualLink.style.display = 'none';
-        return;
-      }
-      throw new Error('Clipboard unavailable');
-    } catch (_err) {
-      copyStatus.textContent = 'Copy failed. Long-press the link below to copy it manually.';
-      manualLink.style.display = 'block';
-      try {
-        const selection = window.getSelection();
-        const range = document.createRange();
-        range.selectNodeContents(manualLink);
-        selection.removeAllRanges();
-        selection.addRange(range);
-      } catch (_selectionErr) {
-        // no-op
-      }
+    if (browserHint) {
+      browserHint.innerHTML = 'Instagram&#8217;s in-app browser may block the app. Tap &#8226;&#8226;&#8226; and choose <b>Open in browser</b>.';
     }
   }
 
   if (copyBtn) {
-    copyBtn.addEventListener('click', copyAppLink, { passive: true });
+    copyBtn.addEventListener('click', async () => {
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(APP_URL);
+          if (copyStatus) copyStatus.textContent = 'App link copied.';
+          if (manualLink) manualLink.style.display = 'none';
+          return;
+        }
+        throw new Error('no clipboard');
+      } catch (_e) {
+        if (copyStatus) copyStatus.textContent = 'Long-press the link below to copy.';
+        if (manualLink) manualLink.style.display = 'block';
+        try {
+          const sel = window.getSelection();
+          const rng = document.createRange();
+          rng.selectNodeContents(manualLink);
+          sel.removeAllRanges();
+          sel.addRange(rng);
+        } catch (_se) {}
+      }
+    }, { passive: true });
   }
 })();
 </script>
