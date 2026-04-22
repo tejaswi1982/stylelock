@@ -7,9 +7,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>StyleLock — Your next self, unlocked</title>
-<meta name="description" content="One selfie. Three hairstyle looks. A spec sheet for your barber. ₹79.">
+<meta name="description" content="One selfie. Three hairstyle looks. ₹79.">
 <meta property="og:title" content="StyleLock — Your next self, unlocked">
-<meta property="og:description" content="One selfie. Three hairstyle looks. A spec sheet for your barber. ₹79.">
+<meta property="og:description" content="One selfie. Three hairstyle looks. ₹79.">
 <meta property="og:type" content="website">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -33,15 +33,10 @@
   }
   :root{
     --volt:#c8e600;
-    --volt-soft:#d7f54c;
-    --cream:#f3efe3;
     --cream-dim:rgba(243,239,227,0.72);
-    --ink-muted:rgba(243,239,227,0.56);
-    --bg-dark:#10241f;
-    --bg-deeper:#081712;
+    --ink-muted:rgba(243,239,227,0.5);
   }
 
-  /* ---------- HERO (unchanged visual language) ---------- */
   .hero{
     position:relative;
     width:100%;
@@ -50,7 +45,9 @@
     min-height:100dvh;
     background:#0d211d url('/static/images/home-hero-latest.jpg?v={{ app_version }}') center center / cover no-repeat;
     overflow:hidden;
-    display:flex;flex-direction:column;justify-content:flex-end;
+    display:flex;
+    flex-direction:column;
+    justify-content:flex-end;
     padding:
       calc(28px + env(safe-area-inset-top,0px))
       max(22px,env(safe-area-inset-right,0px))
@@ -58,200 +55,86 @@
       max(22px,env(safe-area-inset-left,0px));
   }
   .hero::after{
-    content:'';position:absolute;left:0;right:0;bottom:0;height:24%;
+    content:'';
+    position:absolute;
+    left:0;right:0;bottom:0;
+    height:24%;
     background:linear-gradient(to top,rgba(8,18,15,0.72),rgba(8,18,15,0));
-    pointer-events:none;z-index:1;
+    pointer-events:none;
+    z-index:1;
   }
   .hero-cta-wrap{
-    position:relative;z-index:2;
-    display:flex;flex-direction:column;align-items:center;gap:10px;width:100%;
+    position:relative;
+    z-index:2;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:10px;
+    width:100%;
   }
-  .hero-bars{display:flex;gap:10px;justify-content:center;margin-bottom:14px}
+  .hero-bars{
+    display:flex;
+    gap:10px;
+    justify-content:center;
+    margin-bottom:14px;
+  }
   .hero-bars span{
-    width:62px;height:3px;border-radius:999px;background:rgba(243,239,227,0.2);
-    position:relative;overflow:hidden;
+    width:62px;
+    height:3px;
+    border-radius:999px;
+    background:rgba(243,239,227,0.2);
+    position:relative;
+    overflow:hidden;
   }
   .hero-bars span.active::after{
-    content:'';position:absolute;inset:0;width:100%;
+    content:'';
+    position:absolute;
+    inset:0;
+    width:100%;
     background:linear-gradient(90deg,var(--volt),#f0ffc1);
     box-shadow:0 0 10px rgba(200,230,0,0.5);
   }
-
-  /* ---------- SHARED CTA ---------- */
   .cta{
-    display:inline-flex;align-items:center;justify-content:center;
-    width:min(320px,82%);padding:18px 22px;border-radius:14px;
-    font-family:'Inter',sans-serif;font-size:16px;font-weight:700;
-    letter-spacing:0.14em;text-transform:uppercase;text-decoration:none;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:min(320px,82%);
+    padding:18px 22px;
+    border-radius:14px;
+    font-family:'Inter',sans-serif;
+    font-size:16px;
+    font-weight:700;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    text-decoration:none;
     color:#10221c;
     background:linear-gradient(180deg,#d9f74f 0%,#bfde1a 100%);
     border:1px solid rgba(200,230,0,0.68);
     box-shadow:0 10px 22px rgba(0,0,0,0.32),0 0 22px rgba(200,230,0,0.18);
-    transition:transform .18s ease, opacity .22s ease;
-    -webkit-appearance:none;touch-action:manipulation;cursor:pointer;
+    transition:transform .18s ease;
+    -webkit-appearance:none;
+    touch-action:manipulation;
+    cursor:pointer;
   }
   .cta:active{transform:scale(.985)}
   .cta-sub{
-    font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.12em;
-    color:var(--cream-dim);margin-top:6px;text-transform:uppercase;
-  }
-  .copy-wrap,
-  .copy-status,
-  .manual-link{
-    display:none !important;
-  }
-
-  /* ---------- PAGE FLOW ---------- */
-  .landing-flow{
-    background:#0d211d;
-    padding:42px 24px calc(132px + env(safe-area-inset-bottom,0px));
-  }
-  .flow-inner{
-    width:100%;
-    max-width:440px;
-    margin:0 auto;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap:34px;
-  }
-  .quiet-line{
-    font-family:'Space Mono',monospace;
-    font-size:12px;
-    line-height:1.6;
-    letter-spacing:0.04em;
-    color:rgba(243,239,227,0.8);
-    text-align:center;
-    max-width:330px;
-  }
-  .price-line{
-    font-family:'Space Mono',monospace;
-    font-size:clamp(18px,4.9vw,20px);
-    line-height:1.55;
-    color:rgba(243,239,227,0.88);
-    text-align:center;
-    max-width:360px;
-  }
-  .done-line{
-    font-family:'Space Mono',monospace;
-    font-size:12px;
-    line-height:1.5;
-    letter-spacing:0.14em;
-    text-transform:uppercase;
-    color:var(--volt-soft);
-    text-align:center;
-  }
-
-  /* ---------- CUT CARD OBJECT ---------- */
-  .cutcard-stage{
-    width:100%;
-    display:flex;
-    justify-content:center;
-  }
-  .cutcard-preview{
-    width:min(100%,372px);
-    transform:rotate(-1.6deg);
-    transform-origin:center;
-    border-radius:18px;
-    background:linear-gradient(180deg,#163831 0%,#0f2a24 100%);
-    border:1px solid rgba(215,245,76,0.24);
-    box-shadow:0 22px 44px rgba(0,0,0,0.46),0 0 0 1px rgba(215,245,76,0.06) inset;
-    padding:18px 18px 20px;
-    overflow:hidden;
-    position:relative;
-  }
-  .cutcard-preview::after{
-    content:'';
-    position:absolute;
-    left:0;right:0;bottom:0;
-    height:28%;
-    background:linear-gradient(to top,rgba(15,42,36,0.92),rgba(15,42,36,0));
-    pointer-events:none;
-  }
-  .cp-head{
-    display:flex;
-    justify-content:space-between;
-    align-items:baseline;
-    margin-bottom:12px;
-    position:relative;
-    z-index:1;
-  }
-  .cp-title{
-    font-family:'Bebas Neue','Inter',sans-serif;
-    font-size:16px;
-    letter-spacing:0.18em;
-    color:var(--volt-soft);
-  }
-  .cp-id{
-    font-family:'Space Mono',monospace;
-    font-size:10px;
-    letter-spacing:0.14em;
-    color:var(--cream-dim);
-  }
-  .cp-row{
-    display:flex;
-    justify-content:space-between;
-    gap:14px;
-    padding:10px 0;
-    border-bottom:1px dashed rgba(243,239,227,0.1);
-    position:relative;
-    z-index:1;
-  }
-  .cp-row:last-child{border-bottom:none}
-  .cp-k{
-    font-family:'Space Mono',monospace;
-    font-size:10.5px;
-    letter-spacing:0.16em;
-    color:var(--ink-muted);
-    text-transform:uppercase;
-  }
-  .cp-v{
-    font-family:'Space Mono',monospace;
-    font-size:11.5px;
-    color:var(--cream);
-    text-align:right;
-    font-weight:700;
-  }
-
-  /* ---------- STICKY CTA ---------- */
-  .sticky-cta{
-    position:fixed;
-    left:50%;
-    bottom:calc(16px + env(safe-area-inset-bottom,0px));
-    transform:translateX(-50%) translateY(16px);
-    width:min(420px,calc(100vw - 24px));
-    padding:0 12px;
-    opacity:0;
-    pointer-events:none;
-    transition:opacity .24s ease, transform .24s ease;
-    z-index:20;
-  }
-  body.sticky-cta-visible .sticky-cta{
-    opacity:1;
-    pointer-events:auto;
-    transform:translateX(-50%) translateY(0);
-  }
-  .sticky-cta .cta{
-    width:100%;
-    max-width:none;
-    box-shadow:0 12px 28px rgba(0,0,0,0.36),0 0 18px rgba(200,230,0,0.16);
-  }
-
-  /* ---------- FOOTER ---------- */
-  footer.foot{
-    background:#0d211d;
-    padding:12px 24px calc(34px + env(safe-area-inset-bottom,0px));
-    text-align:center;
-  }
-  .foot-contact{
     font-family:'Space Mono',monospace;
     font-size:11px;
-    letter-spacing:0.16em;
+    letter-spacing:0.12em;
     color:var(--cream-dim);
+    margin-top:6px;
     text-transform:uppercase;
-    margin-bottom:10px;
   }
-  .foot-contact a{color:var(--volt-soft);text-decoration:none}
+  footer.foot{
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:calc(8px + env(safe-area-inset-bottom,0px));
+    z-index:2;
+    padding:0 24px;
+    text-align:center;
+    pointer-events:none;
+  }
   .foot-sig{
     font-family:'Space Mono',monospace;
     font-size:10.5px;
@@ -261,70 +144,33 @@
   }
 
   @media (min-width: 960px){
-    .hero,
-    .landing-flow,
-    footer.foot{
-      padding-left:max(32px, calc((100vw - 430px) / 2));
-      padding-right:max(32px, calc((100vw - 430px) / 2));
-    }
-    .sticky-cta{
-      width:min(430px, calc(100vw - 32px));
+    .hero{
+      margin:20px auto;
+      width:min(430px, calc(100vw - 48px));
+      min-height:min(calc(100dvh - 40px), 860px);
+      border-radius:28px;
+      box-shadow:
+        0 26px 64px rgba(0,0,0,0.42),
+        inset 0 0 0 1px rgba(243,239,227,0.05);
     }
   }
 </style>
 </head>
 <body>
-
-<!-- =============== HERO (locked) =============== -->
 <section class="hero" id="heroSection">
   <div class="hero-cta-wrap">
     <div class="hero-bars" aria-hidden="true">
       <span></span><span class="active"></span><span></span>
     </div>
-    <a class="cta" href="/app" id="heroCta" data-cta="hero">UNLOCK IT</a>
+    <a class="cta" href="/app" id="heroCta">UPLOAD A SELFIE</a>
     <div class="cta-sub">One selfie · 60 seconds · ₹79 once</div>
-    <div class="copy-wrap" id="copyWrap">
-      <button class="cta" type="button" id="copyBtn" style="width:100%">Copy App Link</button>
-      <div class="copy-status" id="copyStatus" aria-live="polite"></div>
-      <div class="manual-link" id="manualLink">https://www.stylelock.in/app</div>
-    </div>
   </div>
+
+  <footer class="foot">
+    <div class="foot-sig">STYLELOCK &nbsp;//&nbsp; IDENTITY &nbsp;//&nbsp; '26</div>
+  </footer>
 </section>
 
-<main class="landing-flow">
-  <div class="flow-inner">
-    <p class="quiet-line">Not just 3 looks. The spec sheet for your barber.</p>
-
-    <div class="cutcard-stage" aria-label="Identity Cut Card preview">
-      <div class="cutcard-preview">
-        <div class="cp-head">
-          <span class="cp-title">IDENTITY CUT CARD</span>
-          <span class="cp-id">// 002</span>
-        </div>
-        <div class="cp-row"><span class="cp-k">Sides</span><span class="cp-v">Taper · 1 → 3</span></div>
-        <div class="cp-row"><span class="cp-k">Top</span><span class="cp-v">4.5 cm textured</span></div>
-        <div class="cp-row"><span class="cp-k">Fringe</span><span class="cp-v">Forward, soft</span></div>
-        <div class="cp-row"><span class="cp-k">Texture</span><span class="cp-v">Point-cut</span></div>
-        <div class="cp-row"><span class="cp-k">Styling</span><span class="cp-v">Matte paste</span></div>
-      </div>
-    </div>
-
-    <p class="done-line">Show it. Done.</p>
-
-    <p class="price-line">₹79. Less than a coffee. More than the cost of a bad haircut.</p>
-  </div>
-</main>
-
-<div class="sticky-cta" id="stickyCtaWrap" aria-hidden="true">
-  <a class="cta" href="/app" id="stickyCta" data-cta="sticky">UNLOCK IT</a>
-</div>
-
-<footer class="foot">
-  <div class="foot-contact">Questions? <a href="mailto:hello@stylelock.in">hello@stylelock.in</a></div>
-  <div class="foot-sig">STYLELOCK &nbsp;//&nbsp; IDENTITY &nbsp;//&nbsp; '26</div>
-</footer>
-
-<!-- ============ META PIXEL ============ -->
 <script>
 !function(f,b,e,v,n,t,s)
 {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
@@ -339,35 +185,5 @@ fbq('track','PageView');
 </script>
 <noscript><img height="1" width="1" style="display:none"
 src="https://www.facebook.com/tr?id=1868174307106082&ev=PageView&noscript=1" alt=""/></noscript>
-
-<script>
-(() => {
-  const hero = document.getElementById('heroSection');
-  const stickyWrap = document.getElementById('stickyCtaWrap');
-
-  if (!hero || !stickyWrap) return;
-
-  const setStickyState = (visible) => {
-    document.body.classList.toggle('sticky-cta-visible', visible);
-    stickyWrap.setAttribute('aria-hidden', visible ? 'false' : 'true');
-  };
-
-  if ('IntersectionObserver' in window) {
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        setStickyState(!entry.isIntersecting);
-      });
-    }, { threshold: 0.18 });
-    observer.observe(hero);
-  } else {
-    const onScroll = () => {
-      const rect = hero.getBoundingClientRect();
-      setStickyState(rect.bottom <= window.innerHeight * 0.35);
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
-  }
-})();
-</script>
 </body>
 </html>
