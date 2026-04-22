@@ -39,9 +39,6 @@
     --ink-muted:rgba(243,239,227,0.56);
     --bg-dark:#10241f;
     --bg-deeper:#081712;
-    --card:#14332b;
-    --card-hi:#1a3f36;
-    --line:rgba(243,239,227,0.12);
   }
 
   /* ---------- HERO (unchanged visual language) ---------- */
@@ -90,7 +87,7 @@
     background:linear-gradient(180deg,#d9f74f 0%,#bfde1a 100%);
     border:1px solid rgba(200,230,0,0.68);
     box-shadow:0 10px 22px rgba(0,0,0,0.32),0 0 22px rgba(200,230,0,0.18);
-    transition:transform .18s ease;
+    transition:transform .18s ease, opacity .22s ease;
     -webkit-appearance:none;touch-action:manipulation;cursor:pointer;
   }
   .cta:active{transform:scale(.985)}
@@ -98,148 +95,187 @@
     font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.12em;
     color:var(--cream-dim);margin-top:6px;text-transform:uppercase;
   }
-
-  /* ---------- SECTION FRAME ---------- */
-  section.block{background:#0d211d;padding:64px 24px;position:relative}
-  section.block:nth-of-type(even){background:#0b1d18}
-  .block-inner{max-width:480px;margin:0 auto}
-  .eyebrow{
-    font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.3em;
-    color:var(--volt-soft);text-transform:uppercase;margin-bottom:14px;
-  }
-  h2.display{
-    font-family:'Bebas Neue','Inter',sans-serif;
-    font-size:clamp(34px,8.8vw,48px);line-height:1.02;letter-spacing:0.01em;
-    color:var(--cream);margin-bottom:18px;
-  }
-  h2.display .accent{color:var(--volt-soft)}
-  p.body{font-size:15.5px;line-height:1.58;color:var(--cream-dim);margin-bottom:14px}
-  .lime-line{
-    display:inline-block;font-family:'Space Mono',monospace;font-size:12.5px;
-    letter-spacing:0.16em;color:var(--volt-soft);text-transform:uppercase;margin-top:6px;
+  .copy-wrap,
+  .copy-status,
+  .manual-link{
+    display:none !important;
   }
 
-  /* ---------- CARDS ---------- */
-  .card{
-    background:var(--card);border:1px solid var(--line);border-radius:18px;
-    padding:22px 20px 24px;margin-top:14px;position:relative;overflow:hidden;
+  /* ---------- PAGE FLOW ---------- */
+  .landing-flow{
+    background:#0d211d;
+    padding:42px 24px calc(132px + env(safe-area-inset-bottom,0px));
   }
-  .card-num{
-    font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.24em;
-    color:var(--volt-soft);text-transform:uppercase;margin-bottom:10px;
+  .flow-inner{
+    width:100%;
+    max-width:440px;
+    margin:0 auto;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:34px;
   }
-  .card h3{
-    font-family:'Bebas Neue','Inter',sans-serif;font-size:26px;letter-spacing:0.02em;
-    color:var(--cream);margin-bottom:10px;
+  .quiet-line{
+    font-family:'Space Mono',monospace;
+    font-size:12px;
+    line-height:1.6;
+    letter-spacing:0.04em;
+    color:rgba(243,239,227,0.8);
+    text-align:center;
+    max-width:330px;
   }
-  .card p{
-    font-family:'Space Mono',monospace;font-size:12.5px;line-height:1.6;
-    color:var(--cream-dim);letter-spacing:0.01em;
+  .price-line{
+    font-family:'Space Mono',monospace;
+    font-size:clamp(18px,4.9vw,20px);
+    line-height:1.55;
+    color:rgba(243,239,227,0.88);
+    text-align:center;
+    max-width:360px;
+  }
+  .done-line{
+    font-family:'Space Mono',monospace;
+    font-size:12px;
+    line-height:1.5;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--volt-soft);
+    text-align:center;
   }
 
-  /* ---------- CUT CARD PREVIEW ---------- */
+  /* ---------- CUT CARD OBJECT ---------- */
+  .cutcard-stage{
+    width:100%;
+    display:flex;
+    justify-content:center;
+  }
   .cutcard-preview{
-    margin:18px auto 0;transform:rotate(-2.2deg);transform-origin:center;border-radius:14px;
+    width:min(100%,372px);
+    transform:rotate(-1.6deg);
+    transform-origin:center;
+    border-radius:18px;
     background:linear-gradient(180deg,#163831 0%,#0f2a24 100%);
-    border:1px solid rgba(215,245,76,0.22);
-    box-shadow:0 18px 36px rgba(0,0,0,0.44),0 0 0 1px rgba(215,245,76,0.06) inset;
-    padding:16px 18px 18px;max-width:min(92%,360px);overflow:hidden;position:relative;
+    border:1px solid rgba(215,245,76,0.24);
+    box-shadow:0 22px 44px rgba(0,0,0,0.46),0 0 0 1px rgba(215,245,76,0.06) inset;
+    padding:18px 18px 20px;
+    overflow:hidden;
+    position:relative;
   }
   .cutcard-preview::after{
-    content:'';position:absolute;left:0;right:0;bottom:0;height:30%;
+    content:'';
+    position:absolute;
+    left:0;right:0;bottom:0;
+    height:28%;
     background:linear-gradient(to top,rgba(15,42,36,0.92),rgba(15,42,36,0));
     pointer-events:none;
   }
-  .cutcard-preview .cp-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
-  .cutcard-preview .cp-title{font-family:'Bebas Neue','Inter',sans-serif;font-size:15px;letter-spacing:0.18em;color:var(--volt-soft)}
-  .cutcard-preview .cp-id{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.14em;color:var(--cream-dim)}
-  .cutcard-preview .cp-row{display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px dashed rgba(243,239,227,0.1)}
-  .cutcard-preview .cp-row:last-child{border-bottom:none}
-  .cutcard-preview .cp-k{font-family:'Space Mono',monospace;font-size:10.5px;letter-spacing:0.16em;color:var(--ink-muted);text-transform:uppercase}
-  .cutcard-preview .cp-v{font-family:'Space Mono',monospace;font-size:11.5px;color:var(--cream);text-align:right;font-weight:700}
-  .cutcard-caption{
-    display:block;text-align:center;font-family:'Space Mono',monospace;
-    font-size:10.5px;letter-spacing:0.2em;color:var(--ink-muted);margin-top:14px;text-transform:uppercase;
+  .cp-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom:12px;
+    position:relative;
+    z-index:1;
+  }
+  .cp-title{
+    font-family:'Bebas Neue','Inter',sans-serif;
+    font-size:16px;
+    letter-spacing:0.18em;
+    color:var(--volt-soft);
+  }
+  .cp-id{
+    font-family:'Space Mono',monospace;
+    font-size:10px;
+    letter-spacing:0.14em;
+    color:var(--cream-dim);
+  }
+  .cp-row{
+    display:flex;
+    justify-content:space-between;
+    gap:14px;
+    padding:10px 0;
+    border-bottom:1px dashed rgba(243,239,227,0.1);
+    position:relative;
+    z-index:1;
+  }
+  .cp-row:last-child{border-bottom:none}
+  .cp-k{
+    font-family:'Space Mono',monospace;
+    font-size:10.5px;
+    letter-spacing:0.16em;
+    color:var(--ink-muted);
+    text-transform:uppercase;
+  }
+  .cp-v{
+    font-family:'Space Mono',monospace;
+    font-size:11.5px;
+    color:var(--cream);
+    text-align:right;
+    font-weight:700;
   }
 
-  /* ---------- PROOF ---------- */
-  .proof-scroll{
-    display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;
-    padding:6px 24px 14px;-webkit-overflow-scrolling:touch;scrollbar-width:none;
+  /* ---------- STICKY CTA ---------- */
+  .sticky-cta{
+    position:fixed;
+    left:50%;
+    bottom:calc(16px + env(safe-area-inset-bottom,0px));
+    transform:translateX(-50%) translateY(16px);
+    width:min(420px,calc(100vw - 24px));
+    padding:0 12px;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .24s ease, transform .24s ease;
+    z-index:20;
   }
-  .proof-scroll::-webkit-scrollbar{display:none}
-  .proof-card{
-    flex:0 0 78%;max-width:280px;scroll-snap-align:center;
-    background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;
+  body.sticky-cta-visible .sticky-cta{
+    opacity:1;
+    pointer-events:auto;
+    transform:translateX(-50%) translateY(0);
   }
-  .proof-pair{display:grid;grid-template-columns:1fr 1fr;gap:2px;background:var(--line);aspect-ratio:2/1.2}
-  .proof-pair > div{
-    background:#0f2a24 center center / cover no-repeat;position:relative;min-height:120px;
+  .sticky-cta .cta{
+    width:100%;
+    max-width:none;
+    box-shadow:0 12px 28px rgba(0,0,0,0.36),0 0 18px rgba(200,230,0,0.16);
   }
-  .proof-pair > div::after{
-    content:attr(data-label);
-    position:absolute;top:8px;left:8px;
-    font-family:'Space Mono',monospace;font-size:9.5px;letter-spacing:0.2em;
-    color:var(--volt-soft);text-transform:uppercase;
-    background:rgba(8,18,15,0.68);padding:3px 7px;border-radius:4px;
-  }
-  .proof-meta{display:flex;justify-content:space-between;align-items:center;padding:12px 14px}
-  .proof-initials{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.18em;color:var(--cream)}
-  .proof-tier{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.2em;color:var(--volt-soft);text-transform:uppercase}
-  .proof-hint{text-align:center;font-family:'Space Mono',monospace;font-size:10.5px;letter-spacing:0.18em;color:var(--ink-muted);text-transform:uppercase;margin-top:4px}
-
-  /* ---------- MATH ---------- */
-  .math-grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:8px}
-  @media(min-width:560px){.math-grid{grid-template-columns:1fr 1fr}}
-  .math-col{border-radius:16px;padding:20px 18px;background:var(--card);border:1px solid var(--line)}
-  .math-col.bad{opacity:0.78}
-  .math-col.good{
-    background:linear-gradient(180deg,rgba(215,245,76,0.08),rgba(215,245,76,0.02));
-    border-color:rgba(215,245,76,0.32);
-  }
-  .math-label{font-family:'Space Mono',monospace;font-size:10.5px;letter-spacing:0.24em;color:var(--ink-muted);text-transform:uppercase;margin-bottom:10px}
-  .math-col.good .math-label{color:var(--volt-soft)}
-  .math-col p{font-size:14px;line-height:1.55;color:var(--cream-dim)}
-  .math-col strong{color:var(--cream);font-weight:700}
-  .math-col.good strong{color:var(--volt-soft)}
-  .math-closer{font-family:'Space Mono',monospace;font-size:12px;letter-spacing:0.14em;color:var(--cream-dim);text-align:center;margin-top:20px}
-
-  /* ---------- SECOND CTA ---------- */
-  .cta-block{
-    text-align:center;
-    background:radial-gradient(110% 90% at 50% 10%,#20483f 0%,#10241f 55%,#081713 100%);
-    padding:72px 24px 80px;
-  }
-  .cta-block .cta{margin:0 auto}
-
-  /* ---------- INSTAGRAM COPY FALLBACK ---------- */
-  .copy-wrap{
-    width:100%;max-width:320px;display:none;flex-direction:column;gap:10px;margin-top:14px;align-items:center;
-  }
-  .copy-status{min-height:18px;font-size:12px;color:var(--volt-soft);text-align:center}
-  .manual-link{
-    display:none;width:100%;padding:10px 12px;border-radius:10px;
-    border:1px solid rgba(243,239,227,0.14);background:rgba(8,20,16,0.42);
-    color:rgba(243,239,227,0.88);font-size:12px;word-break:break-all;text-align:left;
-  }
-  .browser-hint{
-    font-family:'Space Mono',monospace;font-size:11px;line-height:1.5;letter-spacing:0.08em;
-    color:var(--cream-dim);max-width:320px;margin:18px auto 0;
-    padding:10px 14px;border:1px solid rgba(215,245,76,0.22);border-radius:10px;
-    background:rgba(8,20,16,0.42);text-align:center;text-transform:uppercase;
-  }
-  .browser-hint b{color:var(--volt-soft);font-weight:700}
 
   /* ---------- FOOTER ---------- */
-  footer.foot{background:#070f0c;padding:28px 24px 38px;text-align:center;border-top:1px solid rgba(243,239,227,0.06)}
-  .foot-contact{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.16em;color:var(--cream-dim);text-transform:uppercase;margin-bottom:10px}
+  footer.foot{
+    background:#0d211d;
+    padding:12px 24px calc(34px + env(safe-area-inset-bottom,0px));
+    text-align:center;
+  }
+  .foot-contact{
+    font-family:'Space Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.16em;
+    color:var(--cream-dim);
+    text-transform:uppercase;
+    margin-bottom:10px;
+  }
   .foot-contact a{color:var(--volt-soft);text-decoration:none}
-  .foot-sig{font-family:'Space Mono',monospace;font-size:10.5px;letter-spacing:0.28em;color:var(--ink-muted);text-transform:uppercase}
+  .foot-sig{
+    font-family:'Space Mono',monospace;
+    font-size:10.5px;
+    letter-spacing:0.28em;
+    color:var(--ink-muted);
+    text-transform:uppercase;
+  }
+
+  @media (min-width: 960px){
+    .hero,
+    .landing-flow,
+    footer.foot{
+      padding-left:max(32px, calc((100vw - 430px) / 2));
+      padding-right:max(32px, calc((100vw - 430px) / 2));
+    }
+    .sticky-cta{
+      width:min(430px, calc(100vw - 32px));
+    }
+  }
 </style>
 </head>
 <body>
 
-<!-- =============== SECTION 1: HERO (unchanged) =============== -->
+<!-- =============== HERO (locked) =============== -->
 <section class="hero" id="heroSection">
   <div class="hero-cta-wrap">
     <div class="hero-bars" aria-hidden="true">
@@ -255,34 +291,12 @@
   </div>
 </section>
 
-<!-- =============== SECTION 2: PERSONA =============== -->
-<section class="block" id="personaSection">
-  <div class="block-inner">
-    <div class="eyebrow">// Built for</div>
-    <h2 class="display">FOR THE GUY <span class="accent">WHO NOTICES.</span></h2>
-    <p class="body">You've been getting the same haircut for two years because you don't know how to ask for something different. You've saved photos of haircuts you liked &mdash; then shown them to your barber and gotten something else. You're not vain. You just want to look like the version of yourself you already are in your head.</p>
-    <span class="lime-line">StyleLock is for you.</span>
-  </div>
-</section>
+<main class="landing-flow">
+  <div class="flow-inner">
+    <p class="quiet-line">Not just 3 looks. The spec sheet for your barber.</p>
 
-<!-- =============== SECTION 3: WHAT YOU GET =============== -->
-<section class="block" id="whatYouGetSection">
-  <div class="block-inner">
-    <div class="eyebrow">// Here's what you actually get</div>
-    <h2 class="display">THREE THINGS. <span class="accent">NO NOISE.</span></h2>
-
-    <div class="card">
-      <div class="card-num">01 &mdash; Your 3 looks</div>
-      <h3>CHOSEN, NOT FILTERED.</h3>
-      <p>Chosen for your face, hair, and what's working right now. Not 100 filters. 3 picks.</p>
-    </div>
-
-    <div class="card">
-      <div class="card-num">02 &mdash; Your Cut Card</div>
-      <h3>THE SPEC SHEET.</h3>
-      <p>The exact spec sheet to show your barber. Sides, top, texture, fringe, styling, products. No more "just trim it."</p>
-
-      <div class="cutcard-preview" aria-label="Cut Card preview">
+    <div class="cutcard-stage" aria-label="Identity Cut Card preview">
+      <div class="cutcard-preview">
         <div class="cp-head">
           <span class="cp-title">IDENTITY CUT CARD</span>
           <span class="cp-id">// 002</span>
@@ -293,96 +307,18 @@
         <div class="cp-row"><span class="cp-k">Texture</span><span class="cp-v">Point-cut</span></div>
         <div class="cp-row"><span class="cp-k">Styling</span><span class="cp-v">Matte paste</span></div>
       </div>
-      <span class="cutcard-caption">&mdash; Show this at the chair &mdash;</span>
     </div>
 
-    <div class="card">
-      <div class="card-num">03 &mdash; 60 seconds</div>
-      <h3>THAT'S IT.</h3>
-      <p>One selfie. Three looks. One card to take to the chair.</p>
-    </div>
+    <p class="done-line">Show it. Done.</p>
+
+    <p class="price-line">₹79. Less than a coffee. More than the cost of a bad haircut.</p>
   </div>
-</section>
+</main>
 
-<!-- =============== SECTION 4: PROOF ===============
-     REPLACE placeholder images below with real before/after pairs in
-     /static/images/proof/u{1-5}-{before|after}.jpg once uploaded. -->
-<section class="block" id="proofSection">
-  <div class="block-inner">
-    <div class="eyebrow">// Proof</div>
-    <h2 class="display">REAL MEN. <span class="accent">REAL LOOKS.</span></h2>
-  </div>
-  <div class="proof-scroll" id="proofScroll">
-    <div class="proof-card">
-      <div class="proof-pair">
-        <div data-label="BEFORE" style="background-image:url('/static/images/proof/u1-before.jpg?v={{ app_version }}')"></div>
-        <div data-label="AFTER"  style="background-image:url('/static/images/proof/u1-after.jpg?v={{ app_version }}')"></div>
-      </div>
-      <div class="proof-meta"><span class="proof-initials">&mdash; A.K.</span><span class="proof-tier">TRENDING</span></div>
-    </div>
-    <div class="proof-card">
-      <div class="proof-pair">
-        <div data-label="BEFORE" style="background-image:url('/static/images/proof/u2-before.jpg?v={{ app_version }}')"></div>
-        <div data-label="AFTER"  style="background-image:url('/static/images/proof/u2-after.jpg?v={{ app_version }}')"></div>
-      </div>
-      <div class="proof-meta"><span class="proof-initials">&mdash; R.S.</span><span class="proof-tier">CLEAN</span></div>
-    </div>
-    <div class="proof-card">
-      <div class="proof-pair">
-        <div data-label="BEFORE" style="background-image:url('/static/images/proof/u3-before.jpg?v={{ app_version }}')"></div>
-        <div data-label="AFTER"  style="background-image:url('/static/images/proof/u3-after.jpg?v={{ app_version }}')"></div>
-      </div>
-      <div class="proof-meta"><span class="proof-initials">&mdash; V.M.</span><span class="proof-tier">BOLD</span></div>
-    </div>
-    <div class="proof-card">
-      <div class="proof-pair">
-        <div data-label="BEFORE" style="background-image:url('/static/images/proof/u4-before.jpg?v={{ app_version }}')"></div>
-        <div data-label="AFTER"  style="background-image:url('/static/images/proof/u4-after.jpg?v={{ app_version }}')"></div>
-      </div>
-      <div class="proof-meta"><span class="proof-initials">&mdash; N.P.</span><span class="proof-tier">TRENDING</span></div>
-    </div>
-    <div class="proof-card">
-      <div class="proof-pair">
-        <div data-label="BEFORE" style="background-image:url('/static/images/proof/u5-before.jpg?v={{ app_version }}')"></div>
-        <div data-label="AFTER"  style="background-image:url('/static/images/proof/u5-after.jpg?v={{ app_version }}')"></div>
-      </div>
-      <div class="proof-meta"><span class="proof-initials">&mdash; S.J.</span><span class="proof-tier">CLEAN</span></div>
-    </div>
-  </div>
-  <p class="proof-hint">&mdash; Swipe &mdash;</p>
-</section>
+<div class="sticky-cta" id="stickyCtaWrap" aria-hidden="true">
+  <a class="cta" href="/app" id="stickyCta" data-cta="sticky">UNLOCK IT</a>
+</div>
 
-<!-- =============== SECTION 5: MATH =============== -->
-<section class="block" id="mathSection">
-  <div class="block-inner">
-    <div class="eyebrow">// The math</div>
-    <h2 class="display">₹79. <span class="accent">HERE'S THE MATH.</span></h2>
-
-    <div class="math-grid">
-      <div class="math-col bad">
-        <div class="math-label">Without StyleLock</div>
-        <p>Bad haircut: ₹400&ndash;600. Three weeks of feeling off. Another ₹400&ndash;600 to fix it.</p>
-        <p style="margin-top:10px"><strong>Total: ₹800&ndash;1,200.</strong></p>
-      </div>
-      <div class="math-col good">
-        <div class="math-label">With StyleLock</div>
-        <p>₹79. One selfie. Three looks. One spec sheet for your barber.</p>
-        <p style="margin-top:10px"><strong>Total: ₹79.</strong></p>
-      </div>
-    </div>
-
-    <p class="math-closer">&mdash; Less than a coffee. More than a haircut is worth risking. &mdash;</p>
-  </div>
-</section>
-
-<!-- =============== SECTION 6: SECOND CTA =============== -->
-<section class="cta-block" id="ctaBlock">
-  <a class="cta" href="/app" id="footerCta" data-cta="footer">UNLOCK IT</a>
-  <div class="cta-sub">One selfie · 60 seconds · ₹79 once</div>
-  <p class="browser-hint" id="browserHint">If this opens oddly in Instagram, tap &#8226;&#8226;&#8226; and choose <b>Open in browser</b>.</p>
-</section>
-
-<!-- =============== FOOTER =============== -->
 <footer class="foot">
   <div class="foot-contact">Questions? <a href="mailto:hello@stylelock.in">hello@stylelock.in</a></div>
   <div class="foot-sig">STYLELOCK &nbsp;//&nbsp; IDENTITY &nbsp;//&nbsp; '26</div>
@@ -404,127 +340,32 @@ fbq('track','PageView');
 <noscript><img height="1" width="1" style="display:none"
 src="https://www.facebook.com/tr?id=1868174307106082&ev=PageView&noscript=1" alt=""/></noscript>
 
-<!-- ============ CUSTOM EVENTS + INSTAGRAM HANDLING ============ -->
 <script>
 (() => {
-  // ---------- SESSION ID ----------
-  function uuid() {
-    if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-      const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
-      return v.toString(16);
-    });
-  }
-  let sid;
-  try {
-    sid = sessionStorage.getItem('sl_sid') || uuid();
-    sessionStorage.setItem('sl_sid', sid);
-  } catch (_e) { sid = uuid(); }
+  const hero = document.getElementById('heroSection');
+  const stickyWrap = document.getElementById('stickyCtaWrap');
 
-  function track(event, extra) {
-    try {
-      const payload = Object.assign({ session_id: sid }, extra || {});
-      if (window.fbq) window.fbq('trackCustom', event, payload);
-      if (window.console && console.debug) console.debug('[sl-track]', event, payload);
-    } catch (_err) {}
-  }
-  window.__slTrack = track;
+  if (!hero || !stickyWrap) return;
 
-  // ---------- landing_viewed ----------
-  track('landing_viewed', { path: window.location.pathname });
-
-  // ---------- SCROLL MILESTONES ----------
-  const fired = {};
-  function fireOnce(name, extra) {
-    if (fired[name]) return;
-    fired[name] = true;
-    track(name, extra);
-  }
+  const setStickyState = (visible) => {
+    document.body.classList.toggle('sticky-cta-visible', visible);
+    stickyWrap.setAttribute('aria-hidden', visible ? 'false' : 'true');
+  };
 
   if ('IntersectionObserver' in window) {
-    const hero = document.getElementById('heroSection');
-    const ctaBlock = document.getElementById('ctaBlock');
-
-    if (hero) {
-      const heroObs = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if (!entry.isIntersecting && entry.boundingClientRect.top < 0) {
-            fireOnce('landing_scrolled_past_hero');
-          }
-        });
-      }, { threshold: 0 });
-      heroObs.observe(hero);
-    }
-
-    if (ctaBlock) {
-      const ctaObs = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting && entry.intersectionRatio > 0.25) {
-            fireOnce('landing_scrolled_to_cta_2');
-          }
-        });
-      }, { threshold: [0, 0.25, 0.5] });
-      ctaObs.observe(ctaBlock);
-    }
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        setStickyState(!entry.isIntersecting);
+      });
+    }, { threshold: 0.18 });
+    observer.observe(hero);
   } else {
-    window.addEventListener('scroll', () => {
-      const y = window.scrollY || window.pageYOffset;
-      const vh = window.innerHeight;
-      if (y > vh * 0.9) fireOnce('landing_scrolled_past_hero');
-      const ctaEl = document.getElementById('ctaBlock');
-      if (ctaEl) {
-        const rect = ctaEl.getBoundingClientRect();
-        if (rect.top < vh * 0.75) fireOnce('landing_scrolled_to_cta_2');
-      }
-    }, { passive: true });
-  }
-
-  // ---------- CTA CLICKS ----------
-  document.querySelectorAll('[data-cta]').forEach(el => {
-    el.addEventListener('click', () => {
-      track('cta_clicked', { position: el.getAttribute('data-cta') || 'unknown' });
-    }, { passive: true });
-  });
-
-  // ---------- INSTAGRAM / FB IN-APP BROWSER ----------
-  const APP_URL = 'https://www.stylelock.in/app';
-  const IN_APP_REGEX = /(Instagram|FBAN|FBAV|FB_IAB|Messenger)/i;
-  const isMeta = IN_APP_REGEX.test(navigator.userAgent || '');
-  const copyWrap = document.getElementById('copyWrap');
-  const copyBtn = document.getElementById('copyBtn');
-  const copyStatus = document.getElementById('copyStatus');
-  const manualLink = document.getElementById('manualLink');
-  const browserHint = document.getElementById('browserHint');
-
-  if (isMeta) {
-    if (copyWrap) copyWrap.style.display = 'flex';
-    if (browserHint) {
-      browserHint.innerHTML = 'Instagram&#8217;s in-app browser may block the app. Tap &#8226;&#8226;&#8226; and choose <b>Open in browser</b>.';
-    }
-  }
-
-  if (copyBtn) {
-    copyBtn.addEventListener('click', async () => {
-      try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(APP_URL);
-          if (copyStatus) copyStatus.textContent = 'App link copied.';
-          if (manualLink) manualLink.style.display = 'none';
-          return;
-        }
-        throw new Error('no clipboard');
-      } catch (_e) {
-        if (copyStatus) copyStatus.textContent = 'Long-press the link below to copy.';
-        if (manualLink) manualLink.style.display = 'block';
-        try {
-          const sel = window.getSelection();
-          const rng = document.createRange();
-          rng.selectNodeContents(manualLink);
-          sel.removeAllRanges();
-          sel.addRange(rng);
-        } catch (_se) {}
-      }
-    }, { passive: true });
+    const onScroll = () => {
+      const rect = hero.getBoundingClientRect();
+      setStickyState(rect.bottom <= window.innerHeight * 0.35);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
   }
 })();
 </script>
