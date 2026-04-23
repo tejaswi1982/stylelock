@@ -38,7 +38,14 @@
 src="https://www.facebook.com/tr?id=1868174307106082&ev=PageView&noscript=1"
 /></noscript>
 <div class="screen home active" id="homeScreen">
-    <div class="home-bg" style="background-image: url('/static/images/v1-home-screen.jpg?v={{ app_version }}');"></div>
+    <div class="home-bg">
+        <img
+            class="home-hero-image"
+            src="/static/images/v1-home-screen.jpg?v={{ app_version }}"
+            alt="StyleLock home screen"
+            onerror="this.onerror=null; this.src='/static/images/home-hero-latest.jpg?v={{ app_version }}';"
+        >
+    </div>
     <button class="home-hotspot" id="unlockBtn" aria-label="Unlock it"></button>
 </div>
 
