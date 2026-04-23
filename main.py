@@ -50,6 +50,8 @@ FREE_LOOK_DAILY_CAP = int(os.getenv("FREE_LOOK_DAILY_CAP", "40"))
 FREE_LOOK_DAILY_BUDGET_RUPEES = int(os.getenv("FREE_LOOK_DAILY_BUDGET_RUPEES", "500"))
 FREE_LOOK_COST_RUPEES = int(os.getenv("FREE_LOOK_COST_RUPEES", "13"))
 FREE_LOOK_BG_REMOVAL = os.getenv("FREE_LOOK_BG_REMOVAL", "false").lower() == "true"
+FREE_LOOK_USE_REMOVEBG = os.getenv("FREE_LOOK_USE_REMOVEBG", "true").lower() == "true"
+FREE_LOOK_REMOVEBG_TIMEOUT_MS = int(os.getenv("FREE_LOOK_REMOVEBG_TIMEOUT_MS", "2500"))
 
 # MVP payment auth store. Replace with Redis/database when multi-instance persistence is needed.
 PAYMENT_TOKENS: Dict[str, dict] = {}
@@ -812,40 +814,67 @@ async def upload_image_to_host(image_base64: str) -> str:
 # HELPER FUNCTIONS - Remove.bg
 # =============================================================================
 
-async def remove_background(image_base64: str) -> Optional[str]:
-    """Remove background using remove.bg API"""
+async def remove_background(
+    image_base64: str,
+    *,
+    timeout_ms: int = 30000,
+    pipeline_label: str = "paid",
+) -> Optional[str]:
+    """Remove background using remove.bg API with safe timeout + fallback-friendly logging."""
     if not REMOVEBG_API_KEY:
-        print("  ⚠️ REMOVEBG_API_KEY not set, skipping")
+        print(f"[removebg:{pipeline_label}] skipped - REMOVEBG_API_KEY not set")
         return None
-    
-    print("  🎨 Removing background...")
-    
-    # Strip data URL prefix if present
+
     if "base64," in image_base64:
         image_base64 = image_base64.split("base64,")[1]
-    
-    async with httpx.AsyncClient(timeout=30) as client:
-        try:
+
+    started = time.perf_counter()
+    print(f"[removebg:{pipeline_label}] start timeout_ms={timeout_ms}")
+
+    try:
+        timeout = httpx.Timeout(timeout_ms / 1000.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
             resp = await client.post(
                 "https://api.remove.bg/v1.0/removebg",
-                headers={"X-Api-Key": REMOVEBG_API_KEY},
+                headers={
+                    "X-Api-Key": REMOVEBG_API_KEY,
+                    "Accept": "image/png",
+                },
                 data={
                     "image_file_b64": image_base64,
                     "size": "auto",
                     "format": "png",
-                    "bg_color": "1a2f2a"  # Match app theme green
-                }
+                    "bg_color": "1a2f2a",
+                },
             )
-            if resp.status_code == 200:
-                clean_b64 = base64.b64encode(resp.content).decode('utf-8')
-                print("  ✅ Background removed!")
-                return clean_b64
-            else:
-                print(f"  ⚠️ Remove.bg error: {resp.status_code}")
-                return None
-        except Exception as e:
-            print(f"  ⚠️ Background removal failed: {e}")
+
+        duration_ms = int((time.perf_counter() - started) * 1000)
+        if resp.status_code != 200:
+            body_preview = resp.text[:180] if resp.text else ""
+            print(
+                f"[removebg:{pipeline_label}] failed status={resp.status_code} "
+                f"duration_ms={duration_ms} body={body_preview}"
+            )
             return None
+
+        if not resp.content:
+            print(f"[removebg:{pipeline_label}] failed empty-response duration_ms={duration_ms}")
+            return None
+
+        clean_b64 = base64.b64encode(resp.content).decode("utf-8")
+        print(
+            f"[removebg:{pipeline_label}] succeeded duration_ms={duration_ms} "
+            f"output_bytes={len(resp.content)}"
+        )
+        return clean_b64
+    except httpx.TimeoutException:
+        duration_ms = int((time.perf_counter() - started) * 1000)
+        print(f"[removebg:{pipeline_label}] timed_out duration_ms={duration_ms}")
+        return None
+    except Exception as exc:
+        duration_ms = int((time.perf_counter() - started) * 1000)
+        print(f"[removebg:{pipeline_label}] exception duration_ms={duration_ms} error={exc}")
+        return None
 
 # =============================================================================
 # HELPER FUNCTIONS - Claude Analysis
@@ -1132,7 +1161,7 @@ async def parallel_preprocess(image_base64: str) -> Tuple[dict, str]:
     # Run in parallel
     tasks = [
         analyze_with_claude(clean_b64),
-        remove_background(clean_b64) if ENABLE_BG_REMOVAL else asyncio.sleep(0),
+        remove_background(clean_b64, pipeline_label="paid") if ENABLE_BG_REMOVAL else asyncio.sleep(0),
         upload_image_to_host(clean_b64),
     ]
     
@@ -1166,29 +1195,57 @@ async def parallel_preprocess(image_base64: str) -> Tuple[dict, str]:
 
 
 async def preprocess_for_free_look(image_base64: str) -> Tuple[dict, str]:
-    """Generate the free hero look as cheaply as possible: Claude + upload, no remove.bg by default."""
+    """Free-look fast path: upload + analysis immediately, attempt remove.bg with a short timeout."""
     print("\n🔄 Starting free-look preprocessing...")
-    start = time.time()
+    pipeline_started = time.perf_counter()
 
     clean_b64 = image_base64
     if "base64," in clean_b64:
         clean_b64 = clean_b64.split("base64,")[1]
 
+    original_bytes = len(base64.b64decode(clean_b64))
+    print(
+        f"[free-look] upload_received_at={current_ist_timestamp()} "
+        f"image_bytes={original_bytes}"
+    )
+
     analysis_task = analyze_with_claude(clean_b64)
     upload_task = upload_image_to_host(clean_b64)
-    analysis, target_url = await asyncio.gather(analysis_task, upload_task)
+    removebg_task = None
+    if FREE_LOOK_USE_REMOVEBG:
+        removebg_task = asyncio.create_task(
+            remove_background(
+                clean_b64,
+                timeout_ms=FREE_LOOK_REMOVEBG_TIMEOUT_MS,
+                pipeline_label="free-look",
+            )
+        )
 
-    if FREE_LOOK_BG_REMOVAL and REMOVEBG_API_KEY:
-        try:
-            clean_image_b64 = await remove_background(clean_b64)
-            if clean_image_b64:
+    analysis, original_target_url = await asyncio.gather(analysis_task, upload_task)
+    target_url = original_target_url
+    removebg_status = "disabled"
+
+    if removebg_task:
+        clean_image_b64 = await removebg_task
+        if clean_image_b64:
+            try:
                 target_url = await upload_image_to_host(clean_image_b64)
-                print("  ✅ Free look bg removal applied")
-        except Exception as exc:
-            print(f"  ⚠️ Free look bg removal skipped: {exc}")
+                removebg_status = "succeeded"
+                print("[free-look] removebg_selected=true")
+            except Exception as exc:
+                removebg_status = f"upload_failed:{exc}"
+                print(f"[free-look] removebg_upload_failed error={exc}")
+                target_url = original_target_url
+        else:
+            removebg_status = "fallback_original"
+            target_url = original_target_url
 
-    elapsed = time.time() - start
-    print(f"✅ Free preprocessing done in {elapsed:.1f}s")
+    elapsed_ms = int((time.perf_counter() - pipeline_started) * 1000)
+    print(
+        f"[free-look] preprocessing_complete removebg_status={removebg_status} "
+        f"target_source={'cutout' if target_url != original_target_url else 'original'} "
+        f"duration_ms={elapsed_ms}"
+    )
     return analysis, target_url
 
 
@@ -1198,10 +1255,15 @@ async def generate_selected_previews(target_url: str, looks: list[dict]) -> list
     if not pending:
         return looks
 
+    started = time.perf_counter()
+    print(f"[vmodel] start count={len(pending)}")
     generated = await asyncio.gather(
         *(generate_hairstyle_vmodel(target_url, look) for look in pending),
         return_exceptions=True,
     )
+    duration_ms = int((time.perf_counter() - started) * 1000)
+    success_count = sum(1 for preview in generated if preview and not isinstance(preview, Exception))
+    print(f"[vmodel] end duration_ms={duration_ms} success_count={success_count} total={len(pending)}")
 
     for look, preview in zip(pending, generated):
         if preview and not isinstance(preview, Exception):
@@ -1385,6 +1447,7 @@ async def join_free_look_waitlist(request: Request):
 async def generate_free_look(request: Request):
     """Generate only the strongest hero look for the free-first funnel."""
     start_time = time.time()
+    pipeline_started = time.perf_counter()
     try:
         data = await request.json()
     except Exception:
@@ -1393,11 +1456,21 @@ async def generate_free_look(request: Request):
     session_id = str(data.get("session_id", "")).strip()
     claim_token = str(data.get("claim_token", "")).strip()
     image_base64 = data.get("image", "")
+    client_original_bytes = data.get("client_original_bytes")
+    client_compressed_bytes = data.get("client_compressed_bytes")
+    client_long_edge = data.get("client_long_edge")
 
     if not session_id or not claim_token:
         return JSONResponse({"success": False, "error": "Missing free-look session details"}, status_code=400)
     if not image_base64:
         return JSONResponse({"success": False, "error": "No image provided"}, status_code=400)
+
+    print(
+        f"[free-look] request_meta session_id={session_id[:8]} "
+        f"client_original_bytes={client_original_bytes} "
+        f"client_compressed_bytes={client_compressed_bytes} "
+        f"client_long_edge={client_long_edge}"
+    )
 
     valid_claim, claim_error = await claim_free_look_generation(session_id, claim_token)
     if not valid_claim:
@@ -1431,11 +1504,13 @@ async def generate_free_look(request: Request):
         finalize_free_look_claim(claim_token, "used")
 
         elapsed = time.time() - start_time
+        total_ms = int((time.perf_counter() - pipeline_started) * 1000)
+        print(f"[free-look] total_pipeline_duration_ms={total_ms}")
         return {
             "success": True,
             "look": formatted_look,
             "processing_time": round(elapsed, 1),
-            "free_look_bg_removal": FREE_LOOK_BG_REMOVAL,
+            "free_look_bg_removal": FREE_LOOK_USE_REMOVEBG,
         }
     except Exception as exc:
         finalize_free_look_claim(claim_token, "reserved")
