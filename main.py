@@ -20,7 +20,9 @@ import secrets
 import hmac
 import hashlib
 import sys
-from typing import Optional, Tuple, Dict
+import sqlite3
+from datetime import datetime, timezone, timedelta
+from typing import Optional, Tuple, Dict, Any
 from pathlib import Path
 
 import httpx
@@ -44,9 +46,17 @@ FREEIMAGE_API_KEY = os.getenv("FREEIMAGE_API_KEY", "6d207e02198a847aa98d0a2a9014
 ENABLE_BG_REMOVAL = os.getenv("ENABLE_BG_REMOVAL", "true").lower() == "true"
 APP_VERSION = os.getenv("APP_VERSION", "v54.6")
 PAYMENT_TOKEN_TTL_SECONDS = int(os.getenv("PAYMENT_TOKEN_TTL_SECONDS", "900"))
+FREE_LOOK_DAILY_CAP = int(os.getenv("FREE_LOOK_DAILY_CAP", "40"))
+FREE_LOOK_DAILY_BUDGET_RUPEES = int(os.getenv("FREE_LOOK_DAILY_BUDGET_RUPEES", "500"))
+FREE_LOOK_COST_RUPEES = int(os.getenv("FREE_LOOK_COST_RUPEES", "13"))
+FREE_LOOK_BG_REMOVAL = os.getenv("FREE_LOOK_BG_REMOVAL", "false").lower() == "true"
 
 # MVP payment auth store. Replace with Redis/database when multi-instance persistence is needed.
 PAYMENT_TOKENS: Dict[str, dict] = {}
+FREE_LOOK_SESSIONS: Dict[str, dict] = {}
+FREE_LOOK_SESSION_TTL_SECONDS = int(os.getenv("FREE_LOOK_SESSION_TTL_SECONDS", "21600"))
+FREE_LOOK_LOCK = asyncio.Lock()
+IST = timezone(timedelta(hours=5, minutes=30))
 
 # VMODEL API - CORRECT endpoints (task-based async)
 VMODEL_API_URL = "https://api.vmodel.ai/api/tasks/v1/create"
@@ -416,8 +426,55 @@ app.add_middleware(
 )
 
 BASE_DIR = Path(__file__).resolve().parent
+DB_PATH = BASE_DIR / "stylelock_v1.sqlite3"
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
+
+
+def get_db_connection() -> sqlite3.Connection:
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def init_v1_storage() -> None:
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS free_look_claims (
+                claim_token TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                claim_date TEXT NOT NULL,
+                status TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS waitlist_entries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT NOT NULL,
+                source TEXT,
+                session_id TEXT,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_free_look_claims_date_status ON free_look_claims (claim_date, status)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_free_look_claims_session_date ON free_look_claims (session_id, claim_date)"
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+init_v1_storage()
 
 
 def cleanup_payment_tokens():
@@ -480,6 +537,243 @@ def mask_key_prefix(value: str) -> str:
     if len(cleaned) <= 8:
         return f"{cleaned[:3]}***"
     return f"{cleaned[:8]}***"
+
+
+def current_ist_day() -> str:
+    return datetime.now(IST).date().isoformat()
+
+
+def current_ist_timestamp() -> str:
+    return datetime.now(IST).isoformat(timespec="seconds")
+
+
+def cleanup_free_look_sessions() -> None:
+    cutoff = time.time() - FREE_LOOK_SESSION_TTL_SECONDS
+    stale_sessions = [
+        session_id
+        for session_id, payload in FREE_LOOK_SESSIONS.items()
+        if payload.get("updated_at", 0) < cutoff
+    ]
+    for session_id in stale_sessions:
+        FREE_LOOK_SESSIONS.pop(session_id, None)
+
+
+def get_free_session(session_id: str) -> Optional[dict]:
+    cleanup_free_look_sessions()
+    payload = FREE_LOOK_SESSIONS.get(session_id)
+    if not payload:
+        return None
+    payload["updated_at"] = time.time()
+    return payload
+
+
+def store_free_session(session_id: str, payload: dict) -> None:
+    cleanup_free_look_sessions()
+    payload["updated_at"] = time.time()
+    FREE_LOOK_SESSIONS[session_id] = payload
+
+
+def count_claims_for_day(claim_date: str) -> int:
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            """
+            SELECT COUNT(*) AS total
+            FROM free_look_claims
+            WHERE claim_date = ?
+              AND status IN ('reserved', 'processing', 'used')
+            """,
+            (claim_date,),
+        ).fetchone()
+        return int(row["total"] if row else 0)
+    finally:
+        conn.close()
+
+
+def cleanup_stale_free_claims() -> None:
+    now = int(time.time())
+    reserved_cutoff = now - 1800
+    processing_cutoff = now - 3600
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            """
+            DELETE FROM free_look_claims
+            WHERE status = 'reserved' AND updated_at < ?
+            """,
+            (reserved_cutoff,),
+        )
+        conn.execute(
+            """
+            UPDATE free_look_claims
+            SET status = 'reserved', updated_at = ?
+            WHERE status = 'processing' AND updated_at < ?
+            """,
+            (now, processing_cutoff),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+async def reserve_free_look_claim(session_id: str) -> tuple[bool, dict]:
+    claim_date = current_ist_day()
+    now = int(time.time())
+
+    async with FREE_LOOK_LOCK:
+        cleanup_stale_free_claims()
+        conn = get_db_connection()
+        try:
+            existing = conn.execute(
+                """
+                SELECT claim_token, status
+                FROM free_look_claims
+                WHERE session_id = ? AND claim_date = ?
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                (session_id, claim_date),
+            ).fetchone()
+
+            if existing:
+                status = existing["status"]
+                if status == "reserved":
+                    remaining = max(FREE_LOOK_DAILY_CAP - count_claims_for_day(claim_date), 0)
+                    return True, {
+                        "claim_token": existing["claim_token"],
+                        "remaining": remaining,
+                        "already_reserved": True,
+                    }
+                if status in {"processing", "used"}:
+                    return False, {"reason": "already_claimed"}
+
+            used_today = count_claims_for_day(claim_date)
+            if used_today >= FREE_LOOK_DAILY_CAP:
+                return False, {"reason": "quota_exhausted", "remaining": 0}
+
+            claim_token = secrets.token_urlsafe(24)
+            conn.execute(
+                """
+                INSERT INTO free_look_claims (claim_token, session_id, claim_date, status, created_at, updated_at)
+                VALUES (?, ?, ?, 'reserved', ?, ?)
+                """,
+                (claim_token, session_id, claim_date, now, now),
+            )
+            conn.commit()
+            remaining = max(FREE_LOOK_DAILY_CAP - (used_today + 1), 0)
+            return True, {"claim_token": claim_token, "remaining": remaining}
+        finally:
+            conn.close()
+
+
+async def claim_free_look_generation(session_id: str, claim_token: str) -> tuple[bool, str]:
+    claim_date = current_ist_day()
+    now = int(time.time())
+
+    async with FREE_LOOK_LOCK:
+        cleanup_stale_free_claims()
+        conn = get_db_connection()
+        try:
+            row = conn.execute(
+                """
+                SELECT status
+                FROM free_look_claims
+                WHERE claim_token = ? AND session_id = ? AND claim_date = ?
+                """,
+                (claim_token, session_id, claim_date),
+            ).fetchone()
+
+            if not row:
+                return False, "Free look slot is missing or invalid"
+            if row["status"] == "used":
+                return False, "Free look has already been claimed in this session"
+            if row["status"] == "processing":
+                return False, "Free look is already being generated"
+            if row["status"] != "reserved":
+                return False, "Free look slot is no longer available"
+
+            conn.execute(
+                """
+                UPDATE free_look_claims
+                SET status = 'processing', updated_at = ?
+                WHERE claim_token = ? AND status = 'reserved'
+                """,
+                (now, claim_token),
+            )
+            if conn.total_changes != 1:
+                conn.rollback()
+                return False, "Free look slot is no longer available"
+            conn.commit()
+            return True, ""
+        finally:
+            conn.close()
+
+
+def finalize_free_look_claim(claim_token: str, status: str) -> None:
+    now = int(time.time())
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            "UPDATE free_look_claims SET status = ?, updated_at = ? WHERE claim_token = ?",
+            (status, now, claim_token),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def insert_waitlist_entry(email: str, session_id: str, source: str = "free_look_waitlist") -> None:
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            """
+            INSERT INTO waitlist_entries (email, source, session_id, created_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            (email, source, session_id, current_ist_timestamp()),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def pick_best_free_look(looks: list[dict]) -> dict:
+    ranked = sorted(
+        looks,
+        key=lambda look: (
+            3 if str(look.get("achievability", "")).lower() == "ready" else
+            2 if str(look.get("achievability", "")).lower() == "grow" else
+            1,
+            float(look.get("match_percentage", 0) or 0),
+        ),
+        reverse=True,
+    )
+    return ranked[0]
+
+
+def format_look_payload(rec: dict) -> dict:
+    tier = str(rec.get("tier", "")).upper()
+    if tier not in {"BOLD", "CLEAN", "TRENDING"}:
+        tier = "TRENDING"
+
+    full_name = rec.get("name") or rec.get("id", "Identity Look").replace("_", " ").title()
+    return {
+        "id": rec.get("id", tier.lower()),
+        "tier": tier,
+        "name": full_name,
+        "full_name": full_name,
+        "image": rec.get("preview_url") or f"/static/images/hairstyle_{tier.lower()}.jpg",
+        "match_percentage": rec.get("match_percentage", 80),
+        "achievability": rec.get("achievability", "ready"),
+        "vibe": rec.get("vibe", ""),
+        "maintenance": rec.get("maintenance", ""),
+        "top_length": rec.get("cut_card", {}).get("top_length", ""),
+        "sides": rec.get("cut_card", {}).get("fade", ""),
+        "texture": rec.get("cut_card", {}).get("texture", ""),
+        "products": rec.get("cut_card", {}).get("products", ""),
+        "styling": rec.get("cut_card", {}).get("styling", ""),
+        "fringe": rec.get("cut_card", {}).get("fringe", ""),
+    }
 
 # =============================================================================
 # HELPER FUNCTIONS - Image Upload
@@ -870,6 +1164,51 @@ async def parallel_preprocess(image_base64: str) -> Tuple[dict, str]:
     
     return analysis, target_url
 
+
+async def preprocess_for_free_look(image_base64: str) -> Tuple[dict, str]:
+    """Generate the free hero look as cheaply as possible: Claude + upload, no remove.bg by default."""
+    print("\n🔄 Starting free-look preprocessing...")
+    start = time.time()
+
+    clean_b64 = image_base64
+    if "base64," in clean_b64:
+        clean_b64 = clean_b64.split("base64,")[1]
+
+    analysis_task = analyze_with_claude(clean_b64)
+    upload_task = upload_image_to_host(clean_b64)
+    analysis, target_url = await asyncio.gather(analysis_task, upload_task)
+
+    if FREE_LOOK_BG_REMOVAL and REMOVEBG_API_KEY:
+        try:
+            clean_image_b64 = await remove_background(clean_b64)
+            if clean_image_b64:
+                target_url = await upload_image_to_host(clean_image_b64)
+                print("  ✅ Free look bg removal applied")
+        except Exception as exc:
+            print(f"  ⚠️ Free look bg removal skipped: {exc}")
+
+    elapsed = time.time() - start
+    print(f"✅ Free preprocessing done in {elapsed:.1f}s")
+    return analysis, target_url
+
+
+async def generate_selected_previews(target_url: str, looks: list[dict]) -> list[dict]:
+    """Generate only the previews we still need, preserving already-generated looks."""
+    pending = [look for look in looks if not look.get("preview_url")]
+    if not pending:
+        return looks
+
+    generated = await asyncio.gather(
+        *(generate_hairstyle_vmodel(target_url, look) for look in pending),
+        return_exceptions=True,
+    )
+
+    for look, preview in zip(pending, generated):
+        if preview and not isinstance(preview, Exception):
+            look["preview_url"] = preview
+
+    return looks
+
 # =============================================================================
 # API ROUTES
 # =============================================================================
@@ -979,6 +1318,196 @@ async def debug():
 async def serve_app(request: Request):
     """Serve main app"""
     return build_app_response(request)
+
+
+@app.post("/api/free-look/claim")
+async def claim_free_look(request: Request):
+    """Reserve a daily free-look slot before the upload step."""
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+
+    session_id = str(data.get("session_id", "")).strip()
+    if not session_id:
+        return JSONResponse({"success": False, "error": "Missing session id"}, status_code=400)
+
+    success, payload = await reserve_free_look_claim(session_id)
+    if success:
+        return {
+            "success": True,
+            "claim_token": payload["claim_token"],
+            "remaining": payload.get("remaining", 0),
+            "already_reserved": payload.get("already_reserved", False),
+            "daily_cap": FREE_LOOK_DAILY_CAP,
+        }
+
+    reason = payload.get("reason", "quota_exhausted")
+    if reason == "already_claimed":
+        return JSONResponse(
+            {
+                "success": False,
+                "error": "This session already claimed a free look today",
+                "reason": reason,
+            },
+            status_code=409,
+        )
+
+    return JSONResponse(
+        {
+            "success": False,
+            "error": "Today's free looks are reserved",
+            "reason": reason,
+            "daily_cap": FREE_LOOK_DAILY_CAP,
+        },
+        status_code=409,
+    )
+
+
+@app.post("/api/free-look/waitlist")
+async def join_free_look_waitlist(request: Request):
+    """Capture waitlist emails when the free daily cap is exhausted."""
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse({"success": False, "error": "Invalid request body"}, status_code=400)
+
+    email = str(data.get("email", "")).strip().lower()
+    session_id = str(data.get("session_id", "")).strip()
+    if not email or "@" not in email or "." not in email.split("@")[-1]:
+        return JSONResponse({"success": False, "error": "Enter a valid email"}, status_code=400)
+
+    insert_waitlist_entry(email=email, session_id=session_id)
+    return {"success": True}
+
+
+@app.post("/api/generate-free-look")
+async def generate_free_look(request: Request):
+    """Generate only the strongest hero look for the free-first funnel."""
+    start_time = time.time()
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse({"success": False, "error": "Invalid request body"}, status_code=400)
+
+    session_id = str(data.get("session_id", "")).strip()
+    claim_token = str(data.get("claim_token", "")).strip()
+    image_base64 = data.get("image", "")
+
+    if not session_id or not claim_token:
+        return JSONResponse({"success": False, "error": "Missing free-look session details"}, status_code=400)
+    if not image_base64:
+        return JSONResponse({"success": False, "error": "No image provided"}, status_code=400)
+
+    valid_claim, claim_error = await claim_free_look_generation(session_id, claim_token)
+    if not valid_claim:
+        return JSONResponse({"success": False, "error": claim_error}, status_code=403)
+
+    try:
+        analysis, target_url = await preprocess_for_free_look(image_base64)
+        if not target_url:
+            raise RuntimeError("Failed to process image")
+
+        recommendations = score_and_recommend(analysis)
+        free_look = pick_best_free_look(recommendations)
+        generated = await generate_selected_previews(target_url, [free_look])
+        free_look = generated[0]
+        formatted_look = format_look_payload(free_look)
+
+        store_free_session(
+            session_id,
+            {
+                "image_base64": image_base64,
+                "analysis": analysis,
+                "target_url": target_url,
+                "recommendations": recommendations,
+                "free_look_id": free_look.get("id"),
+                "free_look": formatted_look,
+                "full_results": None,
+                "paid_unlocked": False,
+                "claim_token": claim_token,
+            },
+        )
+        finalize_free_look_claim(claim_token, "used")
+
+        elapsed = time.time() - start_time
+        return {
+            "success": True,
+            "look": formatted_look,
+            "processing_time": round(elapsed, 1),
+            "free_look_bg_removal": FREE_LOOK_BG_REMOVAL,
+        }
+    except Exception as exc:
+        finalize_free_look_claim(claim_token, "reserved")
+        print(f"❌ FREE LOOK ERROR: {exc}")
+        return JSONResponse({"success": False, "error": str(exc)}, status_code=500)
+
+
+@app.post("/api/generate-paid-upgrade")
+async def generate_paid_upgrade(request: Request):
+    """Unlock the remaining two looks after payment and return the final 3-look set."""
+    start_time = time.time()
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse({"success": False, "error": "Invalid request body"}, status_code=400)
+
+    payment_token = str(data.get("payment_token", "")).strip()
+    session_id = str(data.get("session_id", "")).strip()
+
+    valid_token, token_error = consume_payment_token(payment_token)
+    if not valid_token:
+        return JSONResponse({"success": False, "error": token_error}, status_code=403)
+
+    session_payload = get_free_session(session_id)
+    if not session_payload or not session_payload.get("free_look"):
+        return JSONResponse(
+            {"success": False, "error": "Free look session expired. Please start again."},
+            status_code=400,
+        )
+
+    try:
+        recommendations = list(session_payload.get("recommendations") or [])
+        target_url = session_payload.get("target_url")
+        if not target_url and session_payload.get("image_base64"):
+            _, target_url = await parallel_preprocess(session_payload["image_base64"])
+        if not target_url:
+            raise RuntimeError("Missing selfie session for upgrade")
+
+        free_look_id = session_payload.get("free_look_id")
+        selected = []
+        free_rec = next((look for look in recommendations if look.get("id") == free_look_id), None)
+        if free_rec:
+            free_rec["preview_url"] = session_payload["free_look"]["image"]
+            selected.append(free_rec)
+        for look in recommendations:
+            if look.get("id") == free_look_id:
+                continue
+            selected.append(look)
+            if len(selected) == 3:
+                break
+
+        selected = await generate_selected_previews(target_url, selected)
+        formatted = [format_look_payload(look) for look in selected[:3]]
+
+        store_free_session(
+            session_id,
+            {
+                **session_payload,
+                "full_results": formatted,
+                "paid_unlocked": True,
+            },
+        )
+
+        elapsed = time.time() - start_time
+        return {
+            "success": True,
+            "looks": formatted,
+            "processing_time": round(elapsed, 1),
+        }
+    except Exception as exc:
+        print(f"❌ PAID UPGRADE ERROR: {exc}")
+        return JSONResponse({"success": False, "error": str(exc)}, status_code=500)
 
 @app.post("/api/create-order")
 async def create_razorpay_order():
