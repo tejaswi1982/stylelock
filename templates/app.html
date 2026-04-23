@@ -50,7 +50,14 @@ src="https://www.facebook.com/tr?id=1868174307106082&ev=PageView&noscript=1"
 </div>
 
 <div class="screen screen-two" id="screenTwoScreen" hidden>
-    <div class="screen-two-bg" style="background-image: url('/static/images/v1-screen-two.jpg?v={{ app_version }}');"></div>
+    <div class="screen-two-bg">
+        <img
+            class="screen-two-image"
+            src="/static/images/v1-screen-two.jpg?v={{ app_version }}"
+            alt="StyleLock first look free screen"
+            onerror="this.onerror=null; this.src='/static/images/v1-home-screen.jpg?v={{ app_version }}';"
+        >
+    </div>
     <button class="screen-two-hotspot" id="freeLookBtn" aria-label="Get my free look"></button>
 </div>
 
