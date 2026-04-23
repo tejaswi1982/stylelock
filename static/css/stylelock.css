@@ -117,10 +117,10 @@ body::before {
 .home-hotspot {
     position: absolute;
     left: 50%;
-    bottom: max(10.2%, calc(9.4% + env(safe-area-inset-bottom, 0px)));
+    bottom: max(10.6%, calc(9.8% + env(safe-area-inset-bottom, 0px)));
     transform: translateX(-50%);
-    width: min(66vw, 300px);
-    height: 68px;
+    width: min(54vw, 244px);
+    height: 64px;
     border: none;
     background: transparent;
     border-radius: 10px;
@@ -131,43 +131,37 @@ body::before {
     z-index: 20;
 }
 
-.home-bars {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: max(1.7%, calc(1.3% + env(safe-area-inset-bottom, 0px)));
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    z-index: 6;
-    pointer-events: none;
-}
-
-.home-bar {
-    width: 62px;
-    height: 3px;
-    border-radius: 999px;
-    background: rgba(243, 239, 227, 0.2);
-    overflow: hidden;
+.screen-two {
+    background: #0d211d;
+    height: 100dvh;
     position: relative;
 }
 
-.home-bar::after {
-    content: '';
+.screen-two-bg {
     position: absolute;
     inset: 0;
-    width: 45%;
-    background: linear-gradient(90deg, var(--volt), #f0ffc1);
-    box-shadow: 0 0 10px rgba(200, 230, 0, 0.45);
-    animation: homeBar 2.8s ease-in-out infinite;
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center center;
+    background-color: #0d211d;
+    z-index: 2;
 }
 
-.home-bar:nth-child(2)::after { animation-delay: 0.2s; }
-.home-bar:nth-child(3)::after { animation-delay: 0.45s; }
-
-@keyframes homeBar {
-    0%, 100% { transform: translateX(-70%); opacity: 0.65; }
-    50% { transform: translateX(155%); opacity: 1; }
+.screen-two-hotspot {
+    position: absolute;
+    left: 50%;
+    bottom: max(12.8%, calc(11.6% + env(safe-area-inset-bottom, 0px)));
+    transform: translateX(-50%);
+    width: min(72vw, 316px);
+    height: 70px;
+    border: none;
+    background: transparent;
+    border-radius: 14px;
+    cursor: pointer;
+    pointer-events: auto;
+    touch-action: manipulation;
+    -webkit-appearance: none;
+    z-index: 20;
 }
 
 /* ============================================================
@@ -339,7 +333,7 @@ body::before {
 }
 
 .upload-note {
-    margin-bottom: 10px;
+    margin-bottom: 2px;
     font-family: 'Space Mono', monospace;
     font-size: 11px;
     letter-spacing: 0.02em;
@@ -589,6 +583,227 @@ body::before {
     color: rgba(243, 239, 227, 0.86);
     max-width: 320px;
     line-height: 1.45;
+}
+
+.waitlist {
+    justify-content: center;
+    align-items: center;
+    padding:
+        calc(24px + env(safe-area-inset-top, 0px))
+        22px
+        calc(28px + env(safe-area-inset-bottom, 0px));
+    background: radial-gradient(120% 110% at 50% 4%, #1f453b 0%, #102821 43%, #091712 100%);
+}
+
+.waitlist-shell {
+    width: min(100%, 360px);
+    padding: 28px 20px 22px;
+    border-radius: 24px;
+    background: rgba(9, 20, 17, 0.72);
+    border: 1px solid rgba(243, 239, 227, 0.12);
+    box-shadow: 0 22px 44px rgba(0, 0, 0, 0.28);
+    display: grid;
+    gap: 12px;
+    text-align: center;
+}
+
+.waitlist-kicker {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    color: rgba(215, 245, 76, 0.84);
+}
+
+.waitlist-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(34px, 11vw, 48px);
+    line-height: 0.92;
+    letter-spacing: 0.03em;
+    color: rgba(243, 239, 227, 0.95);
+}
+
+.waitlist-subtitle {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    line-height: 1.55;
+    color: rgba(243, 239, 227, 0.72);
+}
+
+.waitlist-form {
+    display: grid;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.waitlist-input {
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid rgba(243, 239, 227, 0.18);
+    background: rgba(6, 16, 13, 0.7);
+    color: rgba(243, 239, 227, 0.95);
+    font: 500 15px/1 'Inter', sans-serif;
+    padding: 14px 14px;
+    outline: none;
+}
+
+.waitlist-input::placeholder {
+    color: rgba(243, 239, 227, 0.44);
+}
+
+.waitlist-submit {
+    width: 100%;
+}
+
+.waitlist-status {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    line-height: 1.45;
+    color: rgba(243, 239, 227, 0.72);
+    min-height: 16px;
+}
+
+.waitlist-back {
+    border: none;
+    background: transparent;
+    color: rgba(243, 239, 227, 0.62);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    padding-top: 2px;
+}
+
+.free-result {
+    background: radial-gradient(120% 110% at 50% 4%, #21473c 0%, #102821 44%, #091711 100%);
+    padding:
+        calc(16px + env(safe-area-inset-top, 0px))
+        16px
+        calc(18px + env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+    align-items: center;
+    gap: 14px;
+}
+
+.free-result-header {
+    width: min(92vw, 370px);
+    display: grid;
+    gap: 5px;
+    text-align: left;
+}
+
+.free-result-kicker {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    color: rgba(215, 245, 76, 0.86);
+}
+
+.free-result-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(34px, 11vw, 48px);
+    line-height: 0.92;
+    letter-spacing: 0.03em;
+    color: rgba(243, 239, 227, 0.95);
+}
+
+.free-result-card {
+    width: min(92vw, 370px);
+}
+
+.free-result-hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: 22px;
+    border: 1px solid rgba(243, 239, 227, 0.14);
+    background: linear-gradient(180deg, rgba(28, 56, 48, 0.96), rgba(11, 24, 20, 0.96));
+    box-shadow: 0 18px 38px rgba(0, 0, 0, 0.28);
+}
+
+.free-result-media {
+    position: relative;
+    aspect-ratio: 4 / 5.2;
+    overflow: hidden;
+    background: rgba(8, 17, 14, 0.6);
+}
+
+.free-result-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 20%;
+    transform: scale(0.9);
+    transform-origin: center 20%;
+}
+
+.free-result-badge,
+.free-result-match {
+    position: absolute;
+    top: 14px;
+    z-index: 3;
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    padding: 7px 10px;
+    border-radius: 8px;
+    background: rgba(8, 20, 16, 0.78);
+    border: 1px solid rgba(243, 239, 227, 0.22);
+}
+
+.free-result-badge {
+    left: 14px;
+    color: #e9f9aa;
+    border-color: rgba(200, 230, 0, 0.58);
+}
+
+.free-result-match {
+    right: 14px;
+    color: rgba(243, 239, 227, 0.86);
+}
+
+.free-result-meta {
+    padding: 12px 12px 14px;
+    display: grid;
+    gap: 8px;
+}
+
+.free-result-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.free-result-tier {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    line-height: 0.88;
+    color: var(--volt-soft);
+}
+
+.free-result-name {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: rgba(243, 239, 227, 0.82);
+}
+
+.free-result-upsell {
+    width: min(92vw, 370px);
+    display: grid;
+    gap: 8px;
+}
+
+.free-unlock-cta {
+    width: 100%;
+    margin: 0;
+    padding: 15px 16px;
+    font-size: 22px;
+}
+
+.free-result-support {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    line-height: 1.5;
+    color: rgba(243, 239, 227, 0.68);
+    text-align: center;
 }
 
 .btn-retry {
@@ -1567,9 +1782,12 @@ body::before {
     }
 
     html body .home,
+    html body .screen-two,
     html body .upload,
     html body .loading,
     html body .error,
+    html body .waitlist,
+    html body .free-result,
     html body .results,
     html body .cutcard,
     html body .locked,
@@ -1588,6 +1806,12 @@ body::before {
     /* Override the global `@media (min-aspect-ratio: 9/16)` rule —
        inside the desktop phone canvas we want cover, not contain. */
     html body .home-bg {
+        background-size: cover !important;
+        background-position: center center !important;
+        border-radius: inherit;
+    }
+
+    html body .screen-two-bg {
         background-size: cover !important;
         background-position: center center !important;
         border-radius: inherit;
