@@ -19,10 +19,15 @@ let currentScreen = 'homeScreen';
 let lockedStampVisible = true;
 const RESULTS_SESSION_KEY = 'stylelock_results_snapshot';
 const LOOK_INDEX_SESSION_KEY = 'stylelock_current_look_idx';
+const FREE_LOOK_SESSION_KEY = 'stylelock_free_look_snapshot';
+const FREE_LOOK_CLAIM_KEY = 'stylelock_free_look_claim_token';
+const FREE_LOOK_STAGE_KEY = 'stylelock_v1_stage';
 const META_VIEW_CONTENT_KEY = 'stylelock_meta_viewcontent_tracked';
 const META_INITIATE_CHECKOUT_KEY = 'stylelock_meta_initiate_checkout_order';
 const META_PURCHASE_KEY = 'stylelock_meta_purchase_payment';
 const META_IN_APP_BROWSER_REGEX = /(Instagram|FBAN|FBAV|FB_IAB|Messenger)/i;
+let freeLookResult = null;
+let freeClaimToken = '';
 
 // ---------- Custom event tracking (Meta Pixel trackCustom) ----------
 // Session ID is shared with landing.html via sessionStorage (key `sl_sid`), so a
@@ -302,10 +307,62 @@ function clearPersistedResultsState() {
     }
 }
 
+function persistFreeLookState() {
+    try {
+        if (freeLookResult) {
+            sessionStorage.setItem(FREE_LOOK_SESSION_KEY, JSON.stringify(freeLookResult));
+        } else {
+            sessionStorage.removeItem(FREE_LOOK_SESSION_KEY);
+        }
+        if (freeClaimToken) {
+            sessionStorage.setItem(FREE_LOOK_CLAIM_KEY, freeClaimToken);
+        } else {
+            sessionStorage.removeItem(FREE_LOOK_CLAIM_KEY);
+        }
+    } catch (err) {
+        console.warn('Unable to persist free look state', err);
+    }
+}
+
+function restoreFreeLookState() {
+    try {
+        const rawLook = sessionStorage.getItem(FREE_LOOK_SESSION_KEY);
+        const rawClaim = sessionStorage.getItem(FREE_LOOK_CLAIM_KEY);
+        freeLookResult = rawLook ? JSON.parse(rawLook) : null;
+        freeClaimToken = rawClaim || '';
+    } catch (err) {
+        console.warn('Unable to restore free look state', err);
+        freeLookResult = null;
+        freeClaimToken = '';
+    }
+}
+
+function clearFreeLookState() {
+    freeLookResult = null;
+    freeClaimToken = '';
+    try {
+        sessionStorage.removeItem(FREE_LOOK_SESSION_KEY);
+        sessionStorage.removeItem(FREE_LOOK_CLAIM_KEY);
+        sessionStorage.removeItem(FREE_LOOK_STAGE_KEY);
+    } catch (err) {
+        console.warn('Unable to clear free look state', err);
+    }
+}
+
+function setV1Stage(stage) {
+    try {
+        sessionStorage.setItem(FREE_LOOK_STAGE_KEY, String(stage || 'home'));
+    } catch (_err) {
+        // no-op
+    }
+}
+
 function resetTransientUiData() {
     resetLoadingTimers();
     imageBase64 = '';
     results = null;
+    freeLookResult = null;
+    freeClaimToken = '';
     currentSlide = 0;
     currentLookIdx = 0;
     isGenerating = false;
@@ -337,8 +394,18 @@ function resetTransientUiData() {
     if (barberContent) barberContent.innerHTML = '';
     const lockedPhoto = byId('lockedPhoto');
     if (lockedPhoto) lockedPhoto.src = '';
+    const freeResultCard = byId('freeResultCard');
+    if (freeResultCard) freeResultCard.innerHTML = '';
+    const waitlistEmail = byId('waitlistEmail');
+    if (waitlistEmail) waitlistEmail.value = '';
+    const waitlistStatus = byId('waitlistStatus');
+    if (waitlistStatus) {
+        waitlistStatus.hidden = true;
+        waitlistStatus.textContent = '';
+    }
 
     clearPersistedResultsState();
+    clearFreeLookState();
 }
 
 function bootToHome() {
@@ -459,7 +526,81 @@ function triggerLibraryInputDirect() {
     }, 900);
 }
 
+async function reserveFreeLookSlot() {
+    const sessionId = slSessionId();
+    const response = await fetch('/api/free-look/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId })
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (response.ok && data.success && data.claim_token) {
+        freeClaimToken = data.claim_token;
+        persistFreeLookState();
+        return { success: true };
+    }
+
+    if (data.reason === 'already_claimed' && freeLookResult) {
+        renderFreeResult();
+        return { success: false, handled: true };
+    }
+
+    if (data.reason === 'quota_exhausted') {
+        show('waitlistScreen');
+        return { success: false, handled: true };
+    }
+
+    throw new Error(data.error || 'Unable to reserve a free look');
+}
+
+async function generateFreeLook() {
+    if (isGenerating || !imageBase64 || !freeClaimToken) return;
+
+    isGenerating = true;
+    show('loadingScreen');
+    startLoadingAnimation();
+    setV1Stage('generating-free-look');
+
+    try {
+        const resp = await fetch('/api/generate-free-look', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                image: imageBase64,
+                claim_token: freeClaimToken,
+                session_id: slSessionId()
+            })
+        });
+
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data.success || !data.look) {
+            throw new Error(data.error || 'Free look generation failed');
+        }
+
+        freeLookResult = data.look;
+        persistFreeLookState();
+        resetLoadingTimers();
+        byId('progressFill').style.width = '100%';
+        byId('loadingText').textContent = 'Your best look is ready';
+
+        setTimeout(() => {
+            renderFreeResult();
+            isGenerating = false;
+        }, 320);
+    } catch (error) {
+        console.error(error);
+        resetLoadingTimers();
+        isGenerating = false;
+        showUserError(error.message || 'Unable to create your free look');
+    }
+}
+
 async function startPayment() {
+    if (!freeLookResult) {
+        showUserError('Generate your free look first');
+        return;
+    }
     try {
         const orderRes = await fetch('/api/create-order', { method: 'POST' });
         const orderData = await orderRes.json().catch(() => ({}));
@@ -498,7 +639,7 @@ async function startPayment() {
 
                     trackPurchase(paymentResponse.razorpay_payment_id);
                     slTrack('payment_successful', { payment_id: paymentResponse.razorpay_payment_id });
-                    generate(verifyData.payment_token);
+                    unlockFullSet(verifyData.payment_token);
                 } catch (verifyErr) {
                     console.error('Payment verification error:', verifyErr);
                     showUserError('Payment verification failed');
@@ -568,6 +709,38 @@ function startLoadingAnimation() {
     }, 2300);
 }
 
+function renderFreeResult() {
+    if (!freeLookResult) {
+        bootToHome();
+        return;
+    }
+
+    const heroPct = Math.max(70, Math.min(99, Number(freeLookResult.match_percentage) || 80));
+    const imageMarkup = freeLookResult.image
+        ? `<img src="${escapeHtml(freeLookResult.image)}" alt="${escapeHtml(freeLookResult.name)}">`
+        : `<div class="slide-image-placeholder">Preview unavailable</div>`;
+
+    byId('freeResultCard').innerHTML = `
+        <article class="free-result-hero ${tierClass(freeLookResult.tier)}">
+            <div class="free-result-media">
+                ${imageMarkup}
+                <div class="free-result-badge">BEST LOOK</div>
+                <div class="free-result-match">${heroPct}% MATCH</div>
+            </div>
+            <div class="free-result-meta">
+                <div class="free-result-row">
+                    <div class="free-result-tier">${safeText(freeLookResult.tier, 'LOOK')}</div>
+                    <div class="readiness-tag">${safeText(freeLookResult.achievability === 'ready' ? 'Ready now' : 'Worth growing')}</div>
+                </div>
+                <div class="free-result-name">${safeText(freeLookResult.name)}</div>
+            </div>
+        </article>
+    `;
+
+    setV1Stage('free-result');
+    show('freeResultScreen');
+}
+
 function normalizeLooks(rawLooks) {
     const list = Array.isArray(rawLooks) ? rawLooks : [];
     const looksByTier = {};
@@ -624,21 +797,25 @@ function normalizeLooks(rawLooks) {
     return ordered.slice(0, 3);
 }
 
-async function generate(paymentToken) {
-    if (isGenerating || !imageBase64 || !paymentToken) return;
+async function unlockFullSet(paymentToken) {
+    if (isGenerating || !freeLookResult || !paymentToken) return;
 
     isGenerating = true;
     show('loadingScreen');
     startLoadingAnimation();
+    setV1Stage('unlocking-paid');
 
     try {
-        const resp = await fetch('/api/generate-looks', {
+        const resp = await fetch('/api/generate-paid-upgrade', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image: imageBase64, payment_token: paymentToken })
+            body: JSON.stringify({
+                payment_token: paymentToken,
+                session_id: slSessionId()
+            })
         });
 
-        const data = await resp.json();
+        const data = await resp.json().catch(() => ({}));
         if (!resp.ok || !data.success) {
             throw new Error(data.error || data.detail || 'Generation failed');
         }
@@ -787,6 +964,7 @@ function renderResults() {
         </div>
     `;
 
+    setV1Stage('results');
     show('resultsScreen');
 }
 
@@ -997,7 +1175,7 @@ function handleImage(event) {
         byId('loadingSelfie').src = dataUrl;
 
         slTrack('selfie_uploaded');
-        setTimeout(() => startPayment(), 260);
+        setTimeout(() => generateFreeLook(), 260);
     };
 
     reader.readAsDataURL(file);
@@ -1007,7 +1185,23 @@ function bindEvents() {
     if (eventsBound) return;
     eventsBound = true;
 
-    byId('unlockBtn').addEventListener('click', () => show('uploadScreen'));
+    byId('unlockBtn').addEventListener('click', () => {
+        setV1Stage('screen-two');
+        show('screenTwoScreen');
+    });
+    byId('freeLookBtn').addEventListener('click', async () => {
+        try {
+            const claim = await reserveFreeLookSlot();
+            if (claim.success) {
+                setV1Stage('upload');
+                show('uploadScreen');
+            }
+        } catch (error) {
+            console.error(error);
+            showUserError(error.message || 'Unable to start your free look');
+        }
+    });
+    byId('unlockAllBtn').addEventListener('click', startPayment);
 
     byId('takePhotoBtn').addEventListener('click', (event) => {
         event.preventDefault();
@@ -1022,6 +1216,31 @@ function bindEvents() {
 
     byId('cameraInput').addEventListener('change', handleImage);
     byId('libraryInput').addEventListener('change', handleImage);
+    byId('waitlistForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const email = byId('waitlistEmail')?.value?.trim();
+        const status = byId('waitlistStatus');
+        if (!email) return;
+        try {
+            const resp = await fetch('/api/free-look/waitlist', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email,
+                    session_id: slSessionId()
+                })
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || !data.success) {
+                throw new Error(data.error || 'Unable to join waitlist');
+            }
+            status.hidden = false;
+            status.textContent = 'You’re on the list. We’ll email you tomorrow.';
+        } catch (error) {
+            status.hidden = false;
+            status.textContent = error.message || 'Unable to save your email right now.';
+        }
+    });
     byId('resultsScreen').addEventListener('touchstart', (event) => {
         if (RESULTS_STATIC_BOARD) return;
         touchStartX = event.touches[0].clientX;
