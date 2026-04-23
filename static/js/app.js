@@ -28,6 +28,11 @@ const META_PURCHASE_KEY = 'stylelock_meta_purchase_payment';
 const META_IN_APP_BROWSER_REGEX = /(Instagram|FBAN|FBAV|FB_IAB|Messenger)/i;
 let freeLookResult = null;
 let freeClaimToken = '';
+let uploadMeta = {
+    originalBytes: 0,
+    compressedBytes: 0,
+    longEdge: 1200
+};
 
 // ---------- Custom event tracking (Meta Pixel trackCustom) ----------
 // Session ID is shared with landing.html via sessionStorage (key `sl_sid`), so a
@@ -73,9 +78,9 @@ function slLookTier(idx) {
 const TIER_ORDER = ['BOLD', 'CLEAN', 'TRENDING'];
 const LOADING_TITLES = ['READING', 'SCANNING', 'MATCHING', 'LOADING'];
 const LOADING_CAPTIONS = [
-    'Analyzing your look',
-    'Reading hair density',
+    'Preparing image',
     'Checking texture and fall',
+    'Building your best look',
     'Mapping your strongest option',
     'Finding your next self',
     'Looking for the clean win',
@@ -96,6 +101,8 @@ const LOADING_CAPTIONS = [
 ];
 const RESULTS_STATIC_BOARD = true;
 const APP_VERSION = String(window.STYLELOCK_APP_VERSION || 'v54.3');
+const FREE_LOOK_LONG_EDGE = 1200;
+const FREE_LOOK_JPEG_QUALITY = 0.86;
 const UI_VERSION_KEY = 'stylelock_ui_version';
 const STALE_UI_KEYS = [
     'stylelock_screen',
@@ -363,6 +370,11 @@ function resetTransientUiData() {
     results = null;
     freeLookResult = null;
     freeClaimToken = '';
+    uploadMeta = {
+        originalBytes: 0,
+        compressedBytes: 0,
+        longEdge: FREE_LOOK_LONG_EDGE
+    };
     currentSlide = 0;
     currentLookIdx = 0;
     isGenerating = false;
@@ -526,6 +538,56 @@ function triggerLibraryInputDirect() {
     }, 900);
 }
 
+async function fileToDataUrl(file) {
+    return await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => resolve(event.target?.result || '');
+        reader.onerror = () => reject(new Error('Unable to read selected photo'));
+        reader.readAsDataURL(file);
+    });
+}
+
+async function compressForFreeLook(file) {
+    const sourceDataUrl = await fileToDataUrl(file);
+    if (!sourceDataUrl || typeof sourceDataUrl !== 'string') {
+        throw new Error('Unable to read selected photo');
+    }
+
+    const originalBytes = file.size || 0;
+
+    const image = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('Unable to prepare selected photo'));
+        img.src = sourceDataUrl;
+    });
+
+    const originalWidth = image.naturalWidth || image.width;
+    const originalHeight = image.naturalHeight || image.height;
+    const longEdge = Math.max(originalWidth, originalHeight);
+    const scale = longEdge > FREE_LOOK_LONG_EDGE ? FREE_LOOK_LONG_EDGE / longEdge : 1;
+    const targetWidth = Math.max(1, Math.round(originalWidth * scale));
+    const targetHeight = Math.max(1, Math.round(originalHeight * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+    const context = canvas.getContext('2d', { alpha: false });
+    context.drawImage(image, 0, 0, targetWidth, targetHeight);
+
+    const compressedDataUrl = canvas.toDataURL('image/jpeg', FREE_LOOK_JPEG_QUALITY);
+    const compressedBase64 = compressedDataUrl.includes(',') ? compressedDataUrl.split(',')[1] : compressedDataUrl;
+    const compressedBytes = Math.floor((compressedBase64.length * 3) / 4);
+
+    return {
+        dataUrl: compressedDataUrl,
+        base64: compressedBase64,
+        originalBytes,
+        compressedBytes,
+        longEdge: Math.max(targetWidth, targetHeight)
+    };
+}
+
 async function reserveFreeLookSlot() {
     const sessionId = slSessionId();
     const response = await fetch('/api/free-look/claim', {
@@ -569,7 +631,10 @@ async function generateFreeLook() {
             body: JSON.stringify({
                 image: imageBase64,
                 claim_token: freeClaimToken,
-                session_id: slSessionId()
+                session_id: slSessionId(),
+                client_original_bytes: uploadMeta.originalBytes,
+                client_compressed_bytes: uploadMeta.compressedBytes,
+                client_long_edge: uploadMeta.longEdge
             })
         });
 
@@ -1152,33 +1217,34 @@ function saveToPhone() {
     a.click();
 }
 
-function handleImage(event) {
+async function handleImage(event) {
     const file = event.target.files?.[0];
     pickerInFlight = false;
     if (!file || isGenerating) return;
 
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-        const dataUrl = ev.target?.result;
-        if (!dataUrl || typeof dataUrl !== 'string') {
-            byId('errorText').textContent = 'Unable to read selected photo';
-            show('errorScreen');
-            return;
-        }
+    try {
+        const prepared = await compressForFreeLook(file);
+        imageBase64 = prepared.base64;
+        uploadMeta = {
+            originalBytes: prepared.originalBytes,
+            compressedBytes: prepared.compressedBytes,
+            longEdge: prepared.longEdge
+        };
 
-        imageBase64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
-
+        console.log('[StyleLock free-look] upload prepared', uploadMeta);
         const preview = byId('uploadPreview');
-        preview.src = dataUrl;
+        preview.src = prepared.dataUrl;
         preview.classList.add('visible');
         byId('uploadPlaceholder').style.display = 'none';
-        byId('loadingSelfie').src = dataUrl;
+        byId('loadingSelfie').src = prepared.dataUrl;
 
         slTrack('selfie_uploaded');
         setTimeout(() => generateFreeLook(), 260);
-    };
-
-    reader.readAsDataURL(file);
+    } catch (error) {
+        console.error(error);
+        byId('errorText').textContent = error.message || 'Unable to read selected photo';
+        show('errorScreen');
+    }
 }
 
 function bindEvents() {
