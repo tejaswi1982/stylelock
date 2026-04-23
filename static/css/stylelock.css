@@ -144,11 +144,16 @@ body::before {
 .screen-two-bg {
     position: absolute;
     inset: 0;
-    background-repeat: no-repeat;
-    background-size: cover;
-    background-position: center center;
     background-color: #0d211d;
     z-index: 2;
+}
+
+.screen-two-image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center center;
 }
 
 .screen-two-hotspot {
@@ -1820,12 +1825,10 @@ body::before {
     }
 
     html body .screen-two-bg {
-        background-size: cover !important;
-        background-position: center center !important;
         border-radius: inherit;
     }
-}
 
-.hidden {
-    display: none !important;
-}
+    html body .screen-two-image {
+        border-radius: inherit;
+        object-fit: cover !important;
+   
