@@ -1840,6 +1840,15 @@ body::before {
         border-radius: inherit;
     }
 
+    html body .upload,
+    html body .upload.active {
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-y: contain;
+        scrollbar-gutter: stable;
+    }
+
     /* Override the global `@media (min-aspect-ratio: 9/16)` rule â€”
        inside the desktop phone canvas we want cover, not contain. */
     html body .home-bg,
@@ -1866,6 +1875,7 @@ body::before {
 .hidden {
     display: none !important;
 }
+
 
 
 
