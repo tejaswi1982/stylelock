@@ -36,7 +36,7 @@ let uploadMeta = {
 
 // ---------- Custom event tracking (Meta Pixel trackCustom) ----------
 // Session ID is shared with landing.html via sessionStorage (key `sl_sid`), so a
-// user's full journey Landing → Upload → Pay → Cut Card joins up in Events Manager.
+// user's full journey Landing â†’ Upload â†’ Pay â†’ Cut Card joins up in Events Manager.
 function slSessionId() {
     try {
         let sid = sessionStorage.getItem('sl_sid');
@@ -77,7 +77,7 @@ function slLookTier(idx) {
 
 const TIER_ORDER = ['BOLD', 'CLEAN', 'TRENDING'];
 const LOADING_TITLES = ['READING', 'SCANNING', 'MATCHING', 'LOADING'];
-const LOADING_CAPTIONS = [
+const FREE_LOOK_LOADING_CAPTIONS = [
     'Preparing image',
     'Checking texture and fall',
     'Building your best look',
@@ -87,7 +87,25 @@ const LOADING_CAPTIONS = [
     'Scanning barber potential',
     'Measuring what’s workable',
     'Matching shape to style',
+    'Seeing what your barber sees',
+    'Looking for your easiest win',
+    'Checking what works right now',
+    'Spotting your strongest route',
+    'Balancing fit and readiness',
+    'Looking for the sharpest option',
+    'Matching growth to possibility',
+    'Finding the most achievable win'
+];
+const PAID_LOADING_CAPTIONS = [
+    'Preparing image',
+    'Checking texture and fall',
     'Building your 3 looks',
+    'Mapping your strongest option',
+    'Finding your next self',
+    'Looking for the clean win',
+    'Scanning barber potential',
+    'Measuring what’s workable',
+    'Matching shape to style',
     'Seeing what your barber sees',
     'Looking for your easiest win',
     'Checking what works right now',
@@ -118,7 +136,7 @@ function byId(id) {
 
 function syncViewportHeight() {
     try {
-        // Prefer visualViewport.height — this reflects the ACTUAL visible area
+        // Prefer visualViewport.height â€” this reflects the ACTUAL visible area
         // in iOS Safari (accounting for dynamic toolbar) and in Instagram's
         // in-app webview (where window.innerHeight is often inaccurate).
         const vv = typeof window !== 'undefined' ? window.visualViewport : null;
@@ -621,7 +639,7 @@ async function generateFreeLook() {
 
     isGenerating = true;
     show('loadingScreen');
-    startLoadingAnimation();
+    startLoadingAnimation('free');
     setV1Stage('generating-free-look');
 
     try {
@@ -732,7 +750,7 @@ async function startPayment() {
     }
 }
 
-function startLoadingAnimation() {
+function startLoadingAnimation(mode = 'paid') {
     const progressFill = byId('progressFill');
     const loadingText = byId('loadingText');
     const loadingTitle = byId('loadingTitle');
@@ -757,10 +775,11 @@ function startLoadingAnimation() {
     }, 1700);
 
     let captionIdx = 0;
-    loadingText.textContent = LOADING_CAPTIONS[captionIdx];
+    const loadingCaptions = mode === 'free' ? FREE_LOOK_LOADING_CAPTIONS : PAID_LOADING_CAPTIONS;
+    loadingText.textContent = loadingCaptions[captionIdx];
     loadingCaptionTimer = setInterval(() => {
-        captionIdx = (captionIdx + 1) % LOADING_CAPTIONS.length;
-        loadingText.textContent = LOADING_CAPTIONS[captionIdx];
+        captionIdx = (captionIdx + 1) % loadingCaptions.length;
+        loadingText.textContent = loadingCaptions[captionIdx];
     }, 1600);
 
     let titleIdx = 0;
@@ -802,6 +821,7 @@ function renderFreeResult() {
         </article>
     `;
 
+    hideFreeSaveHint();
     setV1Stage('free-result');
     show('freeResultScreen');
 }
@@ -867,7 +887,7 @@ async function unlockFullSet(paymentToken) {
 
     isGenerating = true;
     show('loadingScreen');
-    startLoadingAnimation();
+    startLoadingAnimation('paid');
     setV1Stage('unlocking-paid');
 
     try {
@@ -1154,7 +1174,7 @@ function openLockedPreview(idx, showStamp) {
 
     currentLookIdx = idx;
     // The LOCKED badge should only appear on the hero look (MOST ACHIEVABLE / TRENDING).
-    // On secondary expanded views (CLEAN / BOLD), the badge is visually redundant —
+    // On secondary expanded views (CLEAN / BOLD), the badge is visually redundant â€”
     // all three looks are already paid for at this point in the flow.
     const heroIdx = Array.isArray(results?.looks) ? getMostAchievableIndex(results.looks) : 0;
     const isHero = idx === heroIdx;
@@ -1206,15 +1226,108 @@ function showBarber() {
     show('barberScreen');
 }
 
-function saveToPhone() {
+async function fetchImageForSave(imageUrl) {
+    const response = await fetch(imageUrl, { mode: 'cors' });
+    if (!response.ok) {
+        throw new Error(`Unable to fetch image (${response.status})`);
+    }
+    const blob = await response.blob();
+    if (!blob || !blob.size || !String(blob.type || '').startsWith('image/')) {
+        throw new Error('Downloaded image is invalid');
+    }
+    return blob;
+}
+
+function showFreeSaveHint(message = 'Long press the image to save') {
+    const hint = byId('freeSaveHint');
+    if (!hint) return;
+    hint.textContent = message;
+    hint.hidden = false;
+}
+
+function hideFreeSaveHint() {
+    const hint = byId('freeSaveHint');
+    if (!hint) return;
+    hint.hidden = true;
+    hint.textContent = 'Long press the image to save';
+}
+
+function openImageSaveFallback(imageUrl) {
+    if (!imageUrl) return;
+    showFreeSaveHint('Long press the image to save');
+    window.open(imageUrl, '_blank', 'noopener');
+}
+
+function triggerImageDownload(imageUrl, fileName) {
+    const a = document.createElement('a');
+    a.href = imageUrl;
+    a.download = fileName;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+}
+
+async function saveImageAsset(imageUrl, fileName, options = {}) {
+    if (!imageUrl) return;
+
+    const isLikelyIos = /iP(hone|ad|od)/i.test(window.navigator?.userAgent || '');
+    const preferOpenFallback = options.preferOpenFallback === true;
+
+    try {
+        const blob = await fetchImageForSave(imageUrl);
+        const extension = (blob.type && blob.type.split('/')[1]) ? blob.type.split('/')[1].replace('jpeg', 'jpg') : 'jpg';
+        const finalName = fileName || `stylelock-look.${extension}`;
+
+        if (navigator.share && navigator.canShare) {
+            const file = new File([blob], finalName, { type: blob.type || 'image/jpeg' });
+            if (navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        files: [file],
+                        title: 'StyleLock look',
+                        text: 'Your StyleLock look'
+                    });
+                    return;
+                } catch (shareError) {
+                    if (shareError?.name === 'AbortError') {
+                        return;
+                    }
+                    console.warn('[StyleLock save] share failed, falling back', shareError);
+                }
+            }
+        }
+
+        const objectUrl = URL.createObjectURL(blob);
+        try {
+            if (preferOpenFallback && isLikelyIos) {
+                openImageSaveFallback(objectUrl);
+            } else {
+                triggerImageDownload(objectUrl, finalName);
+            }
+        } finally {
+            setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
+        }
+    } catch (error) {
+        console.warn('[StyleLock save] fallback path:', error);
+        openImageSaveFallback(imageUrl);
+    }
+}
+
+async function saveFreeLookToPhone() {
+    const look = freeLookResult;
+    if (!look || !look.image) return;
+
+    hideFreeSaveHint();
+    await saveImageAsset(look.image, 'stylelock-free-look.jpg', { preferOpenFallback: true });
+}
+
+async function saveToPhone() {
     const look = results?.looks?.[currentLookIdx];
     if (!look || !look.image) return;
 
-    const a = document.createElement('a');
-    a.href = look.image;
-    a.download = 'stylelock-look.jpg';
-    a.target = '_blank';
-    a.click();
+    await saveImageAsset(look.image, 'stylelock-look.jpg');
 }
 
 async function handleImage(event) {
@@ -1268,6 +1381,12 @@ function bindEvents() {
         }
     });
     byId('unlockAllBtn').addEventListener('click', startPayment);
+    byId('saveFreeLookBtn').addEventListener('click', () => {
+        saveFreeLookToPhone().catch((error) => {
+            console.error(error);
+            showFreeSaveHint('Long press the image to save');
+        });
+    });
 
     byId('takePhotoBtn').addEventListener('click', (event) => {
         event.preventDefault();
@@ -1301,7 +1420,7 @@ function bindEvents() {
                 throw new Error(data.error || 'Unable to join waitlist');
             }
             status.hidden = false;
-            status.textContent = 'You’re on the list. We’ll email you tomorrow.';
+            status.textContent = 'Youâ€™re on the list. Weâ€™ll email you tomorrow.';
         } catch (error) {
             status.hidden = false;
             status.textContent = error.message || 'Unable to save your email right now.';
@@ -1395,7 +1514,7 @@ window.addEventListener('orientationchange', () => {
 });
 
 // visualViewport fires for iOS Safari toolbar show/hide and for Instagram
-// webview keyboard/chrome transitions — window.resize does NOT fire for these.
+// webview keyboard/chrome transitions â€” window.resize does NOT fire for these.
 if (typeof window !== 'undefined' && window.visualViewport) {
     window.visualViewport.addEventListener('resize', syncViewportHeight, { passive: true });
 }
@@ -1406,3 +1525,8 @@ window.addEventListener('pageshow', (event) => {
         bootToHome();
     }
 });
+
+
+
+
+
