@@ -1386,6 +1386,24 @@ async def serve_app(request: Request):
     return build_app_response(request)
 
 
+@app.get("/api/free-look-status")
+async def free_look_status():
+    """Return the current IST-day free-look availability for lightweight UI display."""
+    async with FREE_LOOK_LOCK:
+        cleanup_stale_free_claims()
+        date_key = current_ist_day()
+        used = count_claims_for_day(date_key)
+        remaining = max(FREE_LOOK_DAILY_CAP - used, 0)
+    return {
+        "success": True,
+        "date_key": date_key,
+        "daily_cap": FREE_LOOK_DAILY_CAP,
+        "used": used,
+        "remaining": remaining,
+        "quota_full": remaining <= 0,
+    }
+
+
 @app.post("/api/free-look/claim")
 async def claim_free_look(request: Request):
     """Reserve a daily free-look slot before the upload step."""
