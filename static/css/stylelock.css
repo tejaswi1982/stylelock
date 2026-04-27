@@ -354,6 +354,20 @@ body::before {
     text-align: center;
 }
 
+.upload-quota-note {
+    margin: -2px 0 2px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    line-height: 1.35;
+    letter-spacing: 0.12em;
+    color: rgba(243, 239, 227, 0.58);
+    text-align: center;
+}
+
+.upload-quota-note.is-full {
+    color: rgba(225, 247, 110, 0.88);
+}
+
 .upload-browser-note {
     width: min(88vw, 340px);
     margin: 0;
@@ -1782,7 +1796,21 @@ body::before {
         width: clamp(132px, 34vw, 150px);
     }
 
-    .upload-browser-note {
+    .upload-quota-note {
+    margin: -2px 0 2px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    line-height: 1.35;
+    letter-spacing: 0.12em;
+    color: rgba(243, 239, 227, 0.58);
+    text-align: center;
+}
+
+.upload-quota-note.is-full {
+    color: rgba(225, 247, 110, 0.88);
+}
+
+.upload-browser-note {
         font-size: 9px;
     }
 
