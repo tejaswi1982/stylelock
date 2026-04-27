@@ -22,6 +22,8 @@ const LOOK_INDEX_SESSION_KEY = 'stylelock_current_look_idx';
 const FREE_LOOK_SESSION_KEY = 'stylelock_free_look_snapshot';
 const FREE_LOOK_CLAIM_KEY = 'stylelock_free_look_claim_token';
 const FREE_LOOK_STAGE_KEY = 'stylelock_v1_stage';
+const FREE_LOOK_BROWSER_LOCK_KEY = 'stylelock_free_look_used_ist_date';
+const DIRECT_PAID_UPLOAD_KEY = 'stylelock_direct_paid_upload';
 const META_VIEW_CONTENT_KEY = 'stylelock_meta_viewcontent_tracked';
 const META_INITIATE_CHECKOUT_KEY = 'stylelock_meta_initiate_checkout_order';
 const META_PURCHASE_KEY = 'stylelock_meta_purchase_payment';
@@ -369,6 +371,7 @@ function clearFreeLookState() {
         sessionStorage.removeItem(FREE_LOOK_SESSION_KEY);
         sessionStorage.removeItem(FREE_LOOK_CLAIM_KEY);
         sessionStorage.removeItem(FREE_LOOK_STAGE_KEY);
+        sessionStorage.removeItem(DIRECT_PAID_UPLOAD_KEY);
     } catch (err) {
         console.warn('Unable to clear free look state', err);
     }
@@ -380,6 +383,123 @@ function setV1Stage(stage) {
     } catch (_err) {
         // no-op
     }
+}
+
+function getIstDateKey() {
+    try {
+        const formatter = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Kolkata',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        });
+        const parts = formatter.formatToParts(new Date());
+        const map = Object.fromEntries(parts.filter((part) => part.type !== 'literal').map((part) => [part.type, part.value]));
+        if (map.year && map.month && map.day) {
+            return `${map.year}-${map.month}-${map.day}`;
+        }
+    } catch (_err) {
+        // no-op
+    }
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+function readFreeLookBrowserLock() {
+    try {
+        const raw = localStorage.getItem(FREE_LOOK_BROWSER_LOCK_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') return null;
+        const today = getIstDateKey();
+        if (parsed.date !== today) {
+            localStorage.removeItem(FREE_LOOK_BROWSER_LOCK_KEY);
+            return null;
+        }
+        return parsed;
+    } catch (_err) {
+        return null;
+    }
+}
+
+function hasUsedFreeLookTodayLocally() {
+    return !!readFreeLookBrowserLock();
+}
+
+function markFreeLookUsedToday() {
+    try {
+        localStorage.setItem(FREE_LOOK_BROWSER_LOCK_KEY, JSON.stringify({
+            date: getIstDateKey(),
+            used: true,
+            updated_at: new Date().toISOString()
+        }));
+    } catch (_err) {
+        // no-op
+    }
+}
+
+function clearStaleFreeLookBrowserLock() {
+    readFreeLookBrowserLock();
+}
+
+function setDirectPaidAfterUpload(enabled) {
+    try {
+        if (enabled) {
+            sessionStorage.setItem(DIRECT_PAID_UPLOAD_KEY, '1');
+        } else {
+            sessionStorage.removeItem(DIRECT_PAID_UPLOAD_KEY);
+        }
+    } catch (_err) {
+        // no-op
+    }
+}
+
+function isDirectPaidAfterUpload() {
+    try {
+        return sessionStorage.getItem(DIRECT_PAID_UPLOAD_KEY) === '1';
+    } catch (_err) {
+        return false;
+    }
+}
+
+function showFreeLookBlockedState(type) {
+    const title = byId('waitlistTitle');
+    const subtitle = byId('waitlistSubtitle');
+    const form = byId('waitlistForm');
+    const submitBtn = byId('waitlistSubmitBtn');
+    const status = byId('waitlistStatus');
+    const email = byId('waitlistEmail');
+
+    if (status) {
+        status.hidden = true;
+        status.textContent = '';
+    }
+    if (email) email.value = '';
+
+    if (type === 'already-used') {
+        if (title) title.textContent = 'You\u2019ve already used your free look today.';
+        if (subtitle) {
+            subtitle.hidden = true;
+            subtitle.textContent = '';
+        }
+        if (form) form.hidden = true;
+    } else {
+        if (title) title.textContent = 'Today\u2019s free looks are full. Leave your email and we\u2019ll notify you when free looks open tomorrow.';
+        if (subtitle) {
+            subtitle.hidden = true;
+            subtitle.textContent = '';
+        }
+        if (form) form.hidden = false;
+        if (submitBtn) submitBtn.textContent = 'NOTIFY ME TOMORROW';
+    }
+
+    show('waitlistScreen');
+}
+
+function startPaidFromBlockedState() {
+    setDirectPaidAfterUpload(true);
+    setV1Stage('direct-paid-upload');
+    show('uploadScreen');
 }
 
 function resetTransientUiData() {
@@ -607,6 +727,12 @@ async function compressForFreeLook(file) {
 }
 
 async function reserveFreeLookSlot() {
+    clearStaleFreeLookBrowserLock();
+    if (hasUsedFreeLookTodayLocally()) {
+        showFreeLookBlockedState('already-used');
+        return { success: false, handled: true };
+    }
+
     const sessionId = slSessionId();
     const response = await fetch('/api/free-look/claim', {
         method: 'POST',
@@ -618,16 +744,18 @@ async function reserveFreeLookSlot() {
     if (response.ok && data.success && data.claim_token) {
         freeClaimToken = data.claim_token;
         persistFreeLookState();
+        setDirectPaidAfterUpload(false);
         return { success: true };
     }
 
-    if (data.reason === 'already_claimed' && freeLookResult) {
-        renderFreeResult();
+    if (data.reason === 'already_claimed') {
+        markFreeLookUsedToday();
+        showFreeLookBlockedState('already-used');
         return { success: false, handled: true };
     }
 
     if (data.reason === 'quota_exhausted') {
-        show('waitlistScreen');
+        showFreeLookBlockedState('quota-full');
         return { success: false, handled: true };
     }
 
@@ -662,6 +790,7 @@ async function generateFreeLook() {
         }
 
         freeLookResult = data.look;
+        markFreeLookUsedToday();
         persistFreeLookState();
         resetLoadingTimers();
         byId('progressFill').style.width = '100%';
@@ -676,6 +805,120 @@ async function generateFreeLook() {
         resetLoadingTimers();
         isGenerating = false;
         showUserError(error.message || 'Unable to create your free look');
+    }
+}
+
+async function startDirectPaidPayment() {
+    if (!imageBase64) {
+        showUserError('Upload your selfie first');
+        return;
+    }
+    try {
+        const orderRes = await fetch('/api/create-order', { method: 'POST' });
+        const orderData = await orderRes.json().catch(() => ({}));
+
+        if (!orderRes.ok || !orderData.success) {
+            showUserError(orderData.error || 'Payment service is unavailable');
+            return;
+        }
+
+        trackInitiateCheckout(orderData.order_id);
+
+        const options = {
+            key: orderData.key_id,
+            amount: orderData.amount,
+            currency: orderData.currency,
+            name: 'StyleLock',
+            description: 'Unlock Your Next Self',
+            order_id: orderData.order_id,
+            handler: async function (paymentResponse) {
+                try {
+                    const verifyRes = await fetch('/api/verify-payment', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            razorpay_order_id: paymentResponse.razorpay_order_id,
+                            razorpay_payment_id: paymentResponse.razorpay_payment_id,
+                            razorpay_signature: paymentResponse.razorpay_signature,
+                        }),
+                    });
+                    const verifyData = await verifyRes.json().catch(() => ({}));
+
+                    if (!verifyRes.ok || !verifyData.success || !verifyData.payment_token) {
+                        showUserError(verifyData.error || 'Payment verification failed');
+                        return;
+                    }
+
+                    trackPurchase(paymentResponse.razorpay_payment_id);
+                    slTrack('payment_successful', { payment_id: paymentResponse.razorpay_payment_id });
+                    await generatePaidLooksFromUpload(verifyData.payment_token);
+                } catch (verifyErr) {
+                    console.error('Payment verification error:', verifyErr);
+                    showUserError('Payment verification failed');
+                }
+            },
+            theme: {
+                color: '#122b24'
+            },
+            modal: {
+                ondismiss: function () {
+                    showUserError('Payment cancelled');
+                }
+            }
+        };
+
+        const rzp = new Razorpay(options);
+        rzp.on('payment.failed', function () {
+            showUserError('Payment failed');
+        });
+        slTrack('payment_initiated');
+        rzp.open();
+    } catch (err) {
+        console.error('Payment error:', err);
+        showUserError('Server unavailable');
+    }
+}
+
+async function generatePaidLooksFromUpload(paymentToken) {
+    if (isGenerating || !imageBase64 || !paymentToken) return;
+
+    isGenerating = true;
+    show('loadingScreen');
+    startLoadingAnimation('paid');
+    setV1Stage('direct-paid-generating');
+
+    try {
+        const resp = await fetch('/api/generate-looks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                image: imageBase64,
+                payment_token: paymentToken
+            })
+        });
+
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data.success || !Array.isArray(data.looks)) {
+            throw new Error(data.error || 'Unable to unlock your looks');
+        }
+
+        results = { looks: normalizeLooks(data.looks) };
+        currentLookIdx = 0;
+        persistResultsState();
+        setDirectPaidAfterUpload(false);
+        resetLoadingTimers();
+        byId('progressFill').style.width = '100%';
+        byId('loadingText').textContent = 'Your 3 looks are ready';
+
+        setTimeout(() => {
+            renderResults();
+            isGenerating = false;
+        }, 320);
+    } catch (error) {
+        console.error(error);
+        resetLoadingTimers();
+        isGenerating = false;
+        showUserError(error.message || 'Unable to unlock your looks');
     }
 }
 
@@ -1352,7 +1595,14 @@ async function handleImage(event) {
         byId('loadingSelfie').src = prepared.dataUrl;
 
         slTrack('selfie_uploaded');
-        setTimeout(() => generateFreeLook(), 260);
+        const directPaid = isDirectPaidAfterUpload();
+        setTimeout(() => {
+            if (directPaid) {
+                startDirectPaidPayment();
+            } else {
+                generateFreeLook();
+            }
+        }, 260);
     } catch (error) {
         console.error(error);
         byId('errorText').textContent = error.message || 'Unable to read selected photo';
@@ -1381,6 +1631,7 @@ function bindEvents() {
         }
     });
     byId('unlockAllBtn').addEventListener('click', startPayment);
+    byId('waitlistPaidBtn').addEventListener('click', startPaidFromBlockedState);
     byId('saveFreeLookBtn').addEventListener('click', () => {
         saveFreeLookToPhone().catch((error) => {
             console.error(error);
@@ -1459,6 +1710,7 @@ function bootApp() {
     }
 
     syncInAppBrowserHint();
+    clearStaleFreeLookBrowserLock();
     trackViewContentOnce();
 
     const activeNodes = Array.from(document.querySelectorAll('.screen.active'));
