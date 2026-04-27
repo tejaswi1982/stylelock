@@ -121,9 +121,9 @@ src="https://www.facebook.com/tr?id=1868174307106082&ev=PageView&noscript=1"
 
 <div class="screen waitlist" id="waitlistScreen" hidden>
     <div class="waitlist-shell">
-        <p class="waitlist-kicker">FREE LOOKS</p>
-        <h1 class="waitlist-title">Today's free looks are reserved.</h1>
-        <p class="waitlist-subtitle">Drop your email and weâ€™ll notify you tomorrow.</p>
+        <p class="waitlist-kicker" id="waitlistKicker">FREE LOOKS</p>
+        <h1 class="waitlist-title" id="waitlistTitle">Today&#8217;s free looks are full. Leave your email and we&#8217;ll notify you when free looks open tomorrow.</h1>
+        <p class="waitlist-subtitle" id="waitlistSubtitle" hidden></p>
         <form class="waitlist-form" id="waitlistForm">
             <input
                 class="waitlist-input"
@@ -134,8 +134,9 @@ src="https://www.facebook.com/tr?id=1868174307106082&ev=PageView&noscript=1"
                 placeholder="Email"
                 required
             >
-            <button class="btn-take-photo waitlist-submit" type="submit">JOIN WAITLIST</button>
+            <button class="btn-take-photo waitlist-submit" id="waitlistSubmitBtn" type="submit">NOTIFY ME TOMORROW</button>
         </form>
+        <button class="btn-select waitlist-paid-cta" id="waitlistPaidBtn" type="button">UNLOCK ALL 3 LOOKS &mdash; &#8377;79</button>
         <p class="waitlist-status" id="waitlistStatus" hidden></p>
         <button class="waitlist-back" type="button" onclick="goHome()">BACK</button>
     </div>
