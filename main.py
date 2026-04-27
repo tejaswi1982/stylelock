@@ -646,8 +646,10 @@ async def reserve_free_look_claim(session_id: str) -> tuple[bool, dict]:
                         "remaining": remaining,
                         "already_reserved": True,
                     }
-                if status in {"processing", "used"}:
-                    return False, {"reason": "already_claimed"}
+                if status == "used":
+                    return False, {"reason": "already_claimed", "free_look_consumed": True}
+                if status == "processing":
+                    return False, {"reason": "already_processing", "free_look_consumed": False}
 
             used_today = count_claims_for_day(claim_date)
             if used_today >= FREE_LOOK_DAILY_CAP:
@@ -691,6 +693,8 @@ async def claim_free_look_generation(session_id: str, claim_token: str) -> tuple
                 return False, "Free look has already been claimed in this session"
             if row["status"] == "processing":
                 return False, "Free look is already being generated"
+            if row["status"] == "failed":
+                return False, "Free look generation failed. Please try again."
             if row["status"] != "reserved":
                 return False, "Free look slot is no longer available"
 
@@ -1409,8 +1413,22 @@ async def claim_free_look(request: Request):
         return JSONResponse(
             {
                 "success": False,
-                "error": "You?ve already used your free look today.",
+                "error": "You've already used your free look today.",
                 "reason": reason,
+                "free_look_consumed": payload.get("free_look_consumed", True),
+                "can_retry": False,
+            },
+            status_code=409,
+        )
+
+    if reason == "already_processing":
+        return JSONResponse(
+            {
+                "success": False,
+                "error": "Free look is already being generated",
+                "reason": reason,
+                "free_look_consumed": False,
+                "can_retry": True,
             },
             status_code=409,
         )
@@ -1418,9 +1436,11 @@ async def claim_free_look(request: Request):
     return JSONResponse(
         {
             "success": False,
-            "error": "Today?s free looks are full. Leave your email and we?ll notify you when free looks open tomorrow.",
+            "error": "Today's free looks are full. Leave your email and we'll notify you when free looks open tomorrow.",
             "reason": reason,
             "daily_cap": FREE_LOOK_DAILY_CAP,
+            "free_look_consumed": False,
+            "can_retry": False,
         },
         status_code=409,
     )
@@ -1484,8 +1504,13 @@ async def generate_free_look(request: Request):
         recommendations = score_and_recommend(analysis)
         free_look = pick_best_free_look(recommendations)
         generated = await generate_selected_previews(target_url, [free_look])
-        free_look = generated[0]
+        free_look = generated[0] if generated else {}
+        preview_url = str(free_look.get("preview_url") or "").strip()
+        if not preview_url:
+            raise RuntimeError("vmodel_failed")
         formatted_look = format_look_payload(free_look)
+        if not str(formatted_look.get("image") or "").strip():
+            raise RuntimeError("vmodel_failed")
 
         store_free_session(
             session_id,
@@ -1511,11 +1536,24 @@ async def generate_free_look(request: Request):
             "look": formatted_look,
             "processing_time": round(elapsed, 1),
             "free_look_bg_removal": FREE_LOOK_USE_REMOVEBG,
+            "free_look_consumed": True,
+            "can_retry": False,
         }
     except Exception as exc:
-        finalize_free_look_claim(claim_token, "reserved")
-        print(f"❌ FREE LOOK ERROR: {exc}")
-        return JSONResponse({"success": False, "error": str(exc)}, status_code=500)
+        finalize_free_look_claim(claim_token, "failed")
+        error_text = str(exc)
+        error_type = "vmodel_failed" if "vmodel" in error_text.lower() or "preview" in error_text.lower() else "free_generation_failed"
+        print(f"FREE LOOK ERROR: {exc}")
+        return JSONResponse(
+            {
+                "success": False,
+                "error": "Generation failed. Please try again.",
+                "error_type": error_type,
+                "free_look_consumed": False,
+                "can_retry": True,
+            },
+            status_code=500,
+        )
 
 
 @app.post("/api/generate-paid-upgrade")
