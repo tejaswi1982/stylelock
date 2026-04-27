@@ -31,6 +31,7 @@ const META_PURCHASE_KEY = 'stylelock_meta_purchase_payment';
 const META_IN_APP_BROWSER_REGEX = /(Instagram|FBAN|FBAV|FB_IAB|Messenger)/i;
 let freeLookResult = null;
 let freeClaimToken = '';
+let freeLookStatus = null;
 let uploadMeta = {
     originalBytes: 0,
     compressedBytes: 0,
@@ -39,7 +40,7 @@ let uploadMeta = {
 
 // ---------- Custom event tracking (Meta Pixel trackCustom) ----------
 // Session ID is shared with landing.html via sessionStorage (key `sl_sid`), so a
-// user's full journey Landing â†’ Upload â†’ Pay â†’ Cut Card joins up in Events Manager.
+// user's full journey Landing → Upload → Pay → Cut Card joins up in Events Manager.
 function slSessionId() {
     try {
         let sid = sessionStorage.getItem('sl_sid');
@@ -88,7 +89,7 @@ const FREE_LOOK_LOADING_CAPTIONS = [
     'Finding your next self',
     'Looking for the clean win',
     'Scanning barber potential',
-    'Measuring what’s workable',
+    'Measuring what s workable',
     'Matching shape to style',
     'Seeing what your barber sees',
     'Looking for your easiest win',
@@ -107,7 +108,7 @@ const PAID_LOADING_CAPTIONS = [
     'Finding your next self',
     'Looking for the clean win',
     'Scanning barber potential',
-    'Measuring what’s workable',
+    'Measuring what s workable',
     'Matching shape to style',
     'Seeing what your barber sees',
     'Looking for your easiest win',
@@ -139,7 +140,7 @@ function byId(id) {
 
 function syncViewportHeight() {
     try {
-        // Prefer visualViewport.height â€” this reflects the ACTUAL visible area
+        // Prefer visualViewport.height — this reflects the ACTUAL visible area
         // in iOS Safari (accounting for dynamic toolbar) and in Instagram's
         // in-app webview (where window.innerHeight is often inaccurate).
         const vv = typeof window !== 'undefined' ? window.visualViewport : null;
@@ -444,6 +445,54 @@ function clearStaleFreeLookBrowserLock() {
     readFreeLookBrowserLock();
 }
 
+function freeLookStatusCopy(remaining) {
+    const value = Number(remaining);
+    if (!Number.isFinite(value) || value <= 0) return 'TODAY\u2019S FREE LOOKS ARE FULL';
+    if (value === 1) return '1 FREE LOOK LEFT TODAY';
+    return `${value} FREE LOOKS LEFT TODAY`;
+}
+
+function renderFreeLookStatus(status = freeLookStatus) {
+    const note = byId('freeLookQuotaNote');
+    if (!note) return;
+    if (!status || status.success === false || status.remaining === undefined || status.remaining === null) {
+        note.hidden = true;
+        note.textContent = '';
+        note.classList.remove('is-full');
+        return;
+    }
+    const remaining = Math.max(0, Number(status.remaining) || 0);
+    note.textContent = freeLookStatusCopy(remaining);
+    note.classList.toggle('is-full', remaining <= 0 || status.quota_full === true);
+    note.hidden = false;
+}
+
+function setFreeLookStatus(status) {
+    if (!status || status.success === false) return;
+    freeLookStatus = {
+        success: true,
+        date_key: status.date_key || getIstDateKey(),
+        daily_cap: Number(status.daily_cap) || 40,
+        used: Number(status.used) || 0,
+        remaining: Math.max(0, Number(status.remaining) || 0),
+        quota_full: status.quota_full === true || Number(status.remaining) <= 0
+    };
+    renderFreeLookStatus();
+}
+
+async function refreshFreeLookStatus() {
+    try {
+        const response = await fetch('/api/free-look-status', { cache: 'no-store' });
+        const data = await response.json().catch(() => ({}));
+        if (response.ok && data.success) {
+            setFreeLookStatus(data);
+        }
+        return data;
+    } catch (err) {
+        console.warn('Unable to refresh free-look status', err);
+        return null;
+    }
+}
 function resetFreeLookDevStateIfRequested() {
     try {
         const params = new URLSearchParams(window.location.search || '');
@@ -843,6 +892,7 @@ async function reserveFreeLookSlot() {
 
     if (response.ok && data.success && data.claim_token) {
         freeClaimToken = data.claim_token;
+        setFreeLookStatus(data);
         persistFreeLookState();
         setDirectPaidAfterUpload(false);
         return { success: true };
@@ -857,6 +907,7 @@ async function reserveFreeLookSlot() {
     }
 
     if (data.reason === 'quota_exhausted') {
+        setFreeLookStatus({ success: true, daily_cap: data.daily_cap, remaining: 0, quota_full: true });
         showFreeLookBlockedState('quota-full');
         return { success: false, handled: true };
     }
@@ -901,6 +952,7 @@ async function generateFreeLook() {
         await waitForImageLoad(data.look.image);
         freeLookResult = data.look;
         markFreeLookUsedToday(data.look.image);
+        refreshFreeLookStatus();
         persistFreeLookState();
         resetLoadingTimers();
         byId('progressFill').style.width = '100%';
@@ -912,6 +964,7 @@ async function generateFreeLook() {
         }, 320);
     } catch (error) {
         console.error(error);
+        refreshFreeLookStatus();
         showFreeGenerationRetry('Generation failed. Please try again.');
     }
 }
@@ -1523,7 +1576,7 @@ function openLockedPreview(idx, showStamp) {
 
     currentLookIdx = idx;
     // The LOCKED badge should only appear on the hero look (MOST ACHIEVABLE / TRENDING).
-    // On secondary expanded views (CLEAN / BOLD), the badge is visually redundant â€”
+    // On secondary expanded views (CLEAN / BOLD), the badge is visually redundant —
     // all three looks are already paid for at this point in the flow.
     const heroIdx = Array.isArray(results?.looks) ? getMostAchievableIndex(results.looks) : 0;
     const isHero = idx === heroIdx;
@@ -1777,7 +1830,7 @@ function bindEvents() {
                 throw new Error(data.error || 'Unable to join waitlist');
             }
             status.hidden = false;
-            status.textContent = 'Youâ€™re on the list. Weâ€™ll email you tomorrow.';
+            status.textContent = 'You’re on the list. We’ll email you tomorrow.';
         } catch (error) {
             status.hidden = false;
             status.textContent = error.message || 'Unable to save your email right now.';
@@ -1818,6 +1871,7 @@ function bootApp() {
     syncInAppBrowserHint();
     resetFreeLookDevStateIfRequested();
     clearStaleFreeLookBrowserLock();
+    refreshFreeLookStatus();
     trackViewContentOnce();
 
     const activeNodes = Array.from(document.querySelectorAll('.screen.active'));
@@ -1873,7 +1927,7 @@ window.addEventListener('orientationchange', () => {
 });
 
 // visualViewport fires for iOS Safari toolbar show/hide and for Instagram
-// webview keyboard/chrome transitions â€” window.resize does NOT fire for these.
+// webview keyboard/chrome transitions — window.resize does NOT fire for these.
 if (typeof window !== 'undefined' && window.visualViewport) {
     window.visualViewport.addEventListener('resize', syncViewportHeight, { passive: true });
 }
