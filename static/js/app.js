@@ -23,6 +23,7 @@ const FREE_LOOK_SESSION_KEY = 'stylelock_free_look_snapshot';
 const FREE_LOOK_CLAIM_KEY = 'stylelock_free_look_claim_token';
 const FREE_LOOK_STAGE_KEY = 'stylelock_v1_stage';
 const FREE_LOOK_BROWSER_LOCK_KEY = 'stylelock_free_look_used_ist_date';
+const FREE_LOOK_RESET_KEYS = [FREE_LOOK_BROWSER_LOCK_KEY, FREE_LOOK_SESSION_KEY, FREE_LOOK_CLAIM_KEY, FREE_LOOK_STAGE_KEY];
 const DIRECT_PAID_UPLOAD_KEY = 'stylelock_direct_paid_upload';
 const META_VIEW_CONTENT_KEY = 'stylelock_meta_viewcontent_tracked';
 const META_INITIATE_CHECKOUT_KEY = 'stylelock_meta_initiate_checkout_order';
@@ -426,11 +427,12 @@ function hasUsedFreeLookTodayLocally() {
     return !!readFreeLookBrowserLock();
 }
 
-function markFreeLookUsedToday() {
+function markFreeLookUsedToday(imageUrl = '') {
     try {
         localStorage.setItem(FREE_LOOK_BROWSER_LOCK_KEY, JSON.stringify({
             date: getIstDateKey(),
             used: true,
+            image: String(imageUrl || ''),
             updated_at: new Date().toISOString()
         }));
     } catch (_err) {
@@ -440,6 +442,103 @@ function markFreeLookUsedToday() {
 
 function clearStaleFreeLookBrowserLock() {
     readFreeLookBrowserLock();
+}
+
+function resetFreeLookDevStateIfRequested() {
+    try {
+        const params = new URLSearchParams(window.location.search || '');
+        if (params.get('resetFreeLook') !== '1') return;
+        FREE_LOOK_RESET_KEYS.forEach((key) => {
+            localStorage.removeItem(key);
+            sessionStorage.removeItem(key);
+        });
+        freeLookResult = null;
+        freeClaimToken = '';
+        console.log('[StyleLock dev] reset free-look local keys:', FREE_LOOK_RESET_KEYS.join(', '));
+        params.delete('resetFreeLook');
+        const nextQuery = params.toString();
+        const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash || ''}`;
+        history.replaceState(null, '', nextUrl);
+    } catch (err) {
+        console.warn('[StyleLock dev] unable to reset free-look state', err);
+    }
+}
+
+function isUsableImageUrl(value) {
+    const url = String(value || '').trim();
+    if (!url || url === 'null' || url === 'undefined') return false;
+    return /^(https?:\/\/|data:image\/|\/static\/|\/)/i.test(url);
+}
+
+function waitForImageLoad(url) {
+    return new Promise((resolve, reject) => {
+        if (!isUsableImageUrl(url)) {
+            reject(new Error('Missing generated image'));
+            return;
+        }
+        const image = new Image();
+        const timer = setTimeout(() => {
+            image.onload = null;
+            image.onerror = null;
+            reject(new Error('Generated image did not load'));
+        }, 9000);
+        image.onload = () => {
+            clearTimeout(timer);
+            resolve(true);
+        };
+        image.onerror = () => {
+            clearTimeout(timer);
+            reject(new Error('Generated image did not load'));
+        };
+        image.src = url;
+    });
+}
+
+function hasUsableFreeLook(look) {
+    return !!look && typeof look === 'object' && isUsableImageUrl(look.image);
+}
+
+function showFreeGenerationRetry(message = 'Generation failed. Please try again.') {
+    resetLoadingTimers();
+    isGenerating = false;
+    freeLookResult = null;
+    freeClaimToken = '';
+    try {
+        sessionStorage.removeItem(FREE_LOOK_SESSION_KEY);
+        sessionStorage.removeItem(FREE_LOOK_CLAIM_KEY);
+    } catch (_err) {
+        // no-op
+    }
+    const errorText = byId('errorText');
+    const retryBtn = document.querySelector('#errorScreen .btn-retry');
+    const backBtn = byId('errorBackBtn');
+    if (errorText) errorText.textContent = message;
+    if (retryBtn) {
+        retryBtn.textContent = 'TRY AGAIN';
+        retryBtn.onclick = async () => {
+            try {
+                const claim = await reserveFreeLookSlot();
+                if (claim.success) {
+                    show('uploadScreen');
+                }
+            } catch (err) {
+                console.error(err);
+                showUserError(err.message || 'Unable to retry your free look');
+            }
+        };
+    }
+    if (backBtn) backBtn.hidden = false;
+    show('errorScreen');
+}
+
+function resetErrorActions() {
+    const retryBtn = document.querySelector('#errorScreen .btn-retry');
+    const backBtn = byId('errorBackBtn');
+    if (retryBtn) {
+        retryBtn.textContent = 'TRY AGAIN';
+        retryBtn.onclick = goHome;
+    }
+    if (backBtn) backBtn.hidden = true;
 }
 
 function setDirectPaidAfterUpload(enabled) {
@@ -629,6 +728,7 @@ function startOver() {
 window.startOver = startOver;
 
 function showUserError(message) {
+    resetErrorActions();
     byId('errorText').textContent = message || 'Something went wrong';
     show('errorScreen');
 }
@@ -749,13 +849,20 @@ async function reserveFreeLookSlot() {
     }
 
     if (data.reason === 'already_claimed') {
-        markFreeLookUsedToday();
+        if (data.free_look_consumed === true) {
+            markFreeLookUsedToday();
+        }
         showFreeLookBlockedState('already-used');
         return { success: false, handled: true };
     }
 
     if (data.reason === 'quota_exhausted') {
         showFreeLookBlockedState('quota-full');
+        return { success: false, handled: true };
+    }
+
+    if (data.reason === 'already_processing') {
+        showFreeGenerationRetry('Generation failed. Please try again.');
         return { success: false, handled: true };
     }
 
@@ -785,12 +892,15 @@ async function generateFreeLook() {
         });
 
         const data = await resp.json().catch(() => ({}));
-        if (!resp.ok || !data.success || !data.look) {
-            throw new Error(data.error || 'Free look generation failed');
+        if (!resp.ok || !data.success || !hasUsableFreeLook(data.look)) {
+            const err = new Error(data.error || 'Generation failed. Please try again.');
+            err.canRetry = data.can_retry !== false;
+            throw err;
         }
 
+        await waitForImageLoad(data.look.image);
         freeLookResult = data.look;
-        markFreeLookUsedToday();
+        markFreeLookUsedToday(data.look.image);
         persistFreeLookState();
         resetLoadingTimers();
         byId('progressFill').style.width = '100%';
@@ -802,9 +912,7 @@ async function generateFreeLook() {
         }, 320);
     } catch (error) {
         console.error(error);
-        resetLoadingTimers();
-        isGenerating = false;
-        showUserError(error.message || 'Unable to create your free look');
+        showFreeGenerationRetry('Generation failed. Please try again.');
     }
 }
 
@@ -1037,15 +1145,13 @@ function startLoadingAnimation(mode = 'paid') {
 }
 
 function renderFreeResult() {
-    if (!freeLookResult) {
-        bootToHome();
+    if (!hasUsableFreeLook(freeLookResult)) {
+        showFreeGenerationRetry('Generation failed. Please try again.');
         return;
     }
 
     const heroPct = Math.max(70, Math.min(99, Number(freeLookResult.match_percentage) || 80));
-    const imageMarkup = freeLookResult.image
-        ? `<img src="${escapeHtml(freeLookResult.image)}" alt="${escapeHtml(freeLookResult.name)}">`
-        : `<div class="slide-image-placeholder">Preview unavailable</div>`;
+    const imageMarkup = `<img src="${escapeHtml(freeLookResult.image)}" alt="${escapeHtml(freeLookResult.name)}" onerror="showFreeGenerationRetry('Generation failed. Please try again.')">`;
 
     byId('freeResultCard').innerHTML = `
         <article class="free-result-hero ${tierClass(freeLookResult.tier)}">
@@ -1710,6 +1816,7 @@ function bootApp() {
     }
 
     syncInAppBrowserHint();
+    resetFreeLookDevStateIfRequested();
     clearStaleFreeLookBrowserLock();
     trackViewContentOnce();
 
