@@ -860,6 +860,17 @@ body::before {
     background: rgba(10, 26, 22, 0.45);
 }
 
+.btn-error-back {
+    border: 0;
+    color: rgba(243, 239, 227, 0.68);
+    background: transparent;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    padding: 12px 0 0;
+    cursor: pointer;
+}
+
 /* ============================================================
    RESULTS
    ============================================================ */
@@ -1792,7 +1803,7 @@ body::before {
 }
 
 /* ============================================================
-   DESKTOP / TABLET â€” phone canvas frame
+   DESKTOP / TABLET — phone canvas frame
    Every screen (especially .home) is constrained to a centered
    portrait panel; the surrounding viewport shows the body's
    radial gradient as negative canvas. Mobile (<640px) untouched.
@@ -1859,7 +1870,7 @@ body::before {
         scrollbar-gutter: stable;
     }
 
-    /* Override the global `@media (min-aspect-ratio: 9/16)` rule â€”
+    /* Override the global `@media (min-aspect-ratio: 9/16)` rule —
        inside the desktop phone canvas we want cover, not contain. */
     html body .home-bg,
     html body .home-hero-image {
