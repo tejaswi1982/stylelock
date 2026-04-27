@@ -1409,7 +1409,7 @@ async def claim_free_look(request: Request):
         return JSONResponse(
             {
                 "success": False,
-                "error": "This session already claimed a free look today",
+                "error": "You?ve already used your free look today.",
                 "reason": reason,
             },
             status_code=409,
@@ -1418,7 +1418,7 @@ async def claim_free_look(request: Request):
     return JSONResponse(
         {
             "success": False,
-            "error": "Today's free looks are reserved",
+            "error": "Today?s free looks are full. Leave your email and we?ll notify you when free looks open tomorrow.",
             "reason": reason,
             "daily_cap": FREE_LOOK_DAILY_CAP,
         },
