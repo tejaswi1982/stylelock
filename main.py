@@ -52,6 +52,10 @@ FREE_LOOK_COST_RUPEES = int(os.getenv("FREE_LOOK_COST_RUPEES", "13"))
 FREE_LOOK_BG_REMOVAL = os.getenv("FREE_LOOK_BG_REMOVAL", "false").lower() == "true"
 FREE_LOOK_USE_REMOVEBG = os.getenv("FREE_LOOK_USE_REMOVEBG", "true").lower() == "true"
 FREE_LOOK_REMOVEBG_TIMEOUT_MS = int(os.getenv("FREE_LOOK_REMOVEBG_TIMEOUT_MS", "2500"))
+STYLELOCK_INTELLIGENCE_ENABLED = os.getenv("STYLELOCK_INTELLIGENCE_ENABLED", "true").lower() == "true"
+# Keep disabled until a real multi-angle generation provider/path is wired. Do not fake 360 with CSS.
+STYLELOCK_360_ENABLED = os.getenv("STYLELOCK_360_ENABLED", "false").lower() == "true"
+STYLELOCK_360_FRAME_COUNT = int(os.getenv("STYLELOCK_360_FRAME_COUNT", "8"))
 
 # MVP payment auth store. Replace with Redis/database when multi-instance persistence is needed.
 PAYMENT_TOKENS: Dict[str, dict] = {}
@@ -757,28 +761,129 @@ def pick_best_free_look(looks: list[dict]) -> dict:
     return ranked[0]
 
 
-def format_look_payload(rec: dict) -> dict:
+def _unique_tags(tags: list[str], limit: int = 5) -> list[str]:
+    seen = set()
+    output = []
+    for tag in tags:
+        clean = str(tag or "").strip()
+        key = clean.lower()
+        if not clean or key in seen:
+            continue
+        seen.add(key)
+        output.append(clean)
+        if len(output) >= limit:
+            break
+    return output
+
+
+def build_stylelock_intelligence(rec: dict, analysis: Optional[dict] = None, rank: int = 0) -> dict:
+    """Compact V2 recommendation metadata. Deterministic fallback keeps paid flow resilient."""
+    if not STYLELOCK_INTELLIGENCE_ENABLED:
+        return {}
+
+    analysis = analysis or {}
+    tier = str(rec.get("tier") or "TRENDING").upper()
+    achievability = str(rec.get("achievability") or "ready").lower()
+    maintenance = str(rec.get("maintenance") or "").lower()
+    match = int(rec.get("match_percentage") or 80)
+    score_bonus = 4 if achievability == "ready" else 0
+    achievability_score = max(70, min(99, match + score_bonus))
+
+    tags = []
+    if rank == 0:
+        tags.append("StyleLock pick")
+    if achievability == "ready":
+        tags.append("Best achievable now")
+        tags.append("Works with current length")
+    else:
+        tags.append("Needs some growth")
+    if analysis.get("hair_density"):
+        tags.append("Works with your hair density")
+    if analysis.get("face_shape"):
+        tags.append("Suits your face shape")
+    if "low" in maintenance:
+        tags.append("Low daily effort")
+    if tier == "CLEAN":
+        tags.append("Clean professional finish")
+    elif tier == "BOLD":
+        tags.append("Adds height")
+    else:
+        tags.append("Barber-friendly cut")
+
+    recommendation = "Recommended because it sharpens your profile without needing major growth."
+    if achievability != "ready":
+        recommendation = "Recommended as a strong direction once your top length grows in."
+    elif tier == "CLEAN":
+        recommendation = "Recommended because it gives you a sharper finish with low daily effort."
+    elif tier == "BOLD":
+        recommendation = "Recommended because it adds shape and presence while staying barber-executable."
+
+    styling_effort = "Low-medium"
+    if "low" in maintenance:
+        styling_effort = "Low"
+    elif "high" in maintenance:
+        styling_effort = "Medium-high"
+
+    products = rec.get("cut_card", {}).get("products") or rec.get("products") or "Matte clay or lightweight paste"
+    styling = rec.get("cut_card", {}).get("styling") or rec.get("styling") or "Work through with fingers and keep texture loose, not slick."
+
+    return {
+        "title": "STYLELOCK INTELLIGENCE",
+        "achievability_score": achievability_score,
+        "achievability_label": f"{achievability_score}% achievable now",
+        "tags": _unique_tags(tags, 5),
+        "recommendation": recommendation,
+        "barber_note": "Barber-friendly cut built around your current face shape, hair density, and growth pattern.",
+        "styling_guidance": {
+            "product": products,
+            "daily_effort": styling_effort,
+            "instruction": styling,
+        },
+    }
+
+
+def build_stylelock_360_payload(rank: int = 0) -> dict:
+    """360 stays hidden unless a real multi-angle generation path is implemented."""
+    if rank != 0:
+        return {"enabled": False, "frames": [], "frame_count": 0, "status": "not_applicable"}
+    return {
+        "enabled": False,
+        "frames": [],
+        "frame_count": STYLELOCK_360_FRAME_COUNT,
+        "status": "disabled" if not STYLELOCK_360_ENABLED else "provider_unavailable",
+        "reason": "Current VModel hairstyle endpoint generates a single transferred image and does not expose controllable multi-angle frames.",
+    }
+
+
+def format_look_payload(rec: dict, analysis: Optional[dict] = None, rank: int = 0) -> dict:
     tier = str(rec.get("tier", "")).upper()
     if tier not in {"BOLD", "CLEAN", "TRENDING"}:
         tier = "TRENDING"
 
     full_name = rec.get("name") or rec.get("id", "Identity Look").replace("_", " ").title()
+    intelligence = build_stylelock_intelligence(rec, analysis, rank)
+    styling_guidance = intelligence.get("styling_guidance", {}) if intelligence else {}
     return {
         "id": rec.get("id", tier.lower()),
         "tier": tier,
         "name": full_name,
         "full_name": full_name,
+        "look_category": rec.get("look_category") or tier.title(),
         "image": rec.get("preview_url") or f"/static/images/hairstyle_{tier.lower()}.jpg",
         "match_percentage": rec.get("match_percentage", 80),
         "achievability": rec.get("achievability", "ready"),
+        "achievability_score": intelligence.get("achievability_score") if intelligence else rec.get("match_percentage", 80),
         "vibe": rec.get("vibe", ""),
         "maintenance": rec.get("maintenance", ""),
         "top_length": rec.get("cut_card", {}).get("top_length", ""),
         "sides": rec.get("cut_card", {}).get("fade", ""),
         "texture": rec.get("cut_card", {}).get("texture", ""),
-        "products": rec.get("cut_card", {}).get("products", ""),
-        "styling": rec.get("cut_card", {}).get("styling", ""),
+        "products": rec.get("cut_card", {}).get("products", styling_guidance.get("product", "")),
+        "styling": rec.get("cut_card", {}).get("styling", styling_guidance.get("instruction", "")),
         "fringe": rec.get("cut_card", {}).get("fringe", ""),
+        "intelligence": intelligence,
+        "stylelock_360": build_stylelock_360_payload(rank),
+        "is_stylelock_pick": rank == 0,
     }
 
 # =============================================================================
@@ -1526,7 +1631,7 @@ async def generate_free_look(request: Request):
         preview_url = str(free_look.get("preview_url") or "").strip()
         if not preview_url:
             raise RuntimeError("vmodel_failed")
-        formatted_look = format_look_payload(free_look)
+        formatted_look = format_look_payload(free_look, analysis, 0)
         if not str(formatted_look.get("image") or "").strip():
             raise RuntimeError("vmodel_failed")
 
@@ -1618,8 +1723,12 @@ async def generate_paid_upgrade(request: Request):
             if len(selected) == 3:
                 break
 
-        selected = await generate_selected_previews(target_url, selected)
-        formatted = [format_look_payload(look) for look in selected[:3]]
+        if selected:
+            preserved_free = selected[0]
+            remaining_paid = selected[1:3]
+            generated_remaining = await generate_selected_previews(target_url, remaining_paid) if remaining_paid else []
+            selected = [preserved_free, *generated_remaining]
+        formatted = [format_look_payload(look, session_payload.get("analysis"), idx) for idx, look in enumerate(selected[:3])]
 
         store_free_session(
             session_id,
