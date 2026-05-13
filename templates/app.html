@@ -138,7 +138,7 @@ src="https://www.facebook.com/tr?id=1868174307106082&ev=PageView&noscript=1"
             >
             <button class="btn-take-photo waitlist-submit" id="waitlistSubmitBtn" type="submit">NOTIFY ME TOMORROW</button>
         </form>
-        <button class="btn-select waitlist-paid-cta" id="waitlistPaidBtn" type="button">UNLOCK ALL 3 LOOKS &mdash; &#8377;79</button>
+        <button class="btn-select waitlist-paid-cta" id="waitlistPaidBtn" type="button">UNLOCK FULL KIT &mdash; &#8377;79</button>
         <p class="waitlist-status" id="waitlistStatus" hidden></p>
         <button class="waitlist-back" type="button" onclick="goHome()">BACK</button>
     </div>
@@ -151,10 +151,11 @@ src="https://www.facebook.com/tr?id=1868174307106082&ev=PageView&noscript=1"
     </div>
     <div class="free-result-card" id="freeResultCard"></div>
     <div class="free-result-upsell">
-        <button class="btn-select free-unlock-cta" id="unlockAllBtn">UNLOCK ALL 3 LOOKS &mdash; &#8377;79</button>
+        <p class="free-result-teaser">See your best cut from every angle. Get the exact card for your barber.</p>
+        <button class="btn-select free-unlock-cta" id="unlockAllBtn">UNLOCK FULL KIT &mdash; &#8377;79</button>
         <button class="btn-save free-save-cta" id="saveFreeLookBtn" type="button">SAVE TO PHONE</button>
         <p class="free-save-hint" id="freeSaveHint" hidden>Long press the image to save</p>
-        <p class="free-result-support">Get 2 more looks + your barber-ready cut card.</p>
+        <p class="free-result-support">3 recommended looks + 360 preview + barber-ready cut card.</p>
     </div>
 </div>
 
@@ -188,6 +189,7 @@ src="https://www.facebook.com/tr?id=1868174307106082&ev=PageView&noscript=1"
     </div>
     <div class="locked-badge">LOCKED</div>
     <div class="locked-actions">
+        <div class="locked-intelligence-panel" id="lockedIntelligencePanel" hidden></div>
         <button class="btn-barber" onclick="showBarber()">SHOW YOUR BARBER</button>
         <button class="btn-save" onclick="saveToPhone()">SAVE TO PHONE</button>
         <button class="btn-restart" onclick="startOver()">START OVER</button>
