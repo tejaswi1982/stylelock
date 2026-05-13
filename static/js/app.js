@@ -1219,12 +1219,14 @@ function renderFreeResult() {
                     <div class="readiness-tag">${safeText(freeLookResult.achievability === 'ready' ? 'Ready now' : 'Worth growing')}</div>
                 </div>
                 <div class="free-result-name">${safeText(freeLookResult.name)}</div>
+                <div class="free-result-intel-line">Chosen for your face and hair.</div>
             </div>
         </article>
     `;
 
     hideFreeSaveHint();
     setV1Stage('free-result');
+    slTrack('free_look_viewed', { look: freeLookResult?.tier || 'free' });
     show('freeResultScreen');
 }
 
@@ -1248,7 +1250,12 @@ function normalizeLooks(rawLooks) {
                 texture: look.texture || '--',
                 products: look.products || '--',
                 styling: look.styling || '--',
-                fringe: look.fringe || '--'
+                fringe: look.fringe || '--',
+                look_category: look.look_category || look.tier || '--',
+                achievability_score: look.achievability_score || look.match_percentage || 80,
+                intelligence: look.intelligence || null,
+                stylelock_360: look.stylelock_360 || null,
+                is_stylelock_pick: !!look.is_stylelock_pick
             };
         }
     });
@@ -1276,7 +1283,12 @@ function normalizeLooks(rawLooks) {
                 texture: look.texture || '--',
                 products: look.products || '--',
                 styling: look.styling || '--',
-                fringe: look.fringe || '--'
+                fringe: look.fringe || '--',
+                look_category: look.look_category || look.tier || '--',
+                achievability_score: look.achievability_score || look.match_percentage || 80,
+                intelligence: look.intelligence || null,
+                stylelock_360: look.stylelock_360 || null,
+                is_stylelock_pick: !!look.is_stylelock_pick
             });
         }
     });
@@ -1342,6 +1354,49 @@ function tierClass(tier) {
     return 'tier-trending';
 }
 
+function getLookIntelligence(look) {
+    return look && typeof look.intelligence === 'object' ? look.intelligence : null;
+}
+
+function intelligenceTags(look, limit = 4) {
+    const intel = getLookIntelligence(look);
+    const tags = Array.isArray(intel?.tags) ? intel.tags : [];
+    return tags.filter(Boolean).slice(0, limit);
+}
+
+function renderMiniIntelligenceTag(look) {
+    const tag = intelligenceTags(look, 1)[0];
+    return tag ? `<div class="mini-intel-tag">${safeText(tag)}</div>` : '';
+}
+
+function renderIntelligencePanel(look) {
+    const intel = getLookIntelligence(look);
+    if (!intel) return '';
+    const tags = intelligenceTags(look, 5).map((tag) => `<span>${safeText(tag)}</span>`).join('');
+    return `
+        <section class="stylelock-intel-panel">
+            <div class="stylelock-intel-kicker">STYLELOCK INTELLIGENCE</div>
+            <div class="stylelock-intel-score">${safeText(intel.achievability_label, `${look.achievability_score || look.match_percentage || 80}% achievable now`)}</div>
+            <div class="stylelock-intel-tags">${tags}</div>
+            <p class="stylelock-intel-line">${safeText(intel.recommendation, 'Recommended because it fits your current face shape, density, and growth pattern.')}</p>
+        </section>
+    `;
+}
+
+function renderStyleLock360(look) {
+    const preview = look?.stylelock_360;
+    const frames = Array.isArray(preview?.frames) ? preview.frames.filter(Boolean) : [];
+    if (!preview?.enabled || frames.length < 2) return '';
+    const dots = frames.map((_, idx) => `<span class="${idx === 0 ? 'active' : ''}"></span>`).join('');
+    return `
+        <section class="stylelock-360-panel" data-frame="0">
+            <div class="stylelock-intel-kicker">STYLELOCK 360</div>
+            <img class="stylelock-360-frame" src="${escapeHtml(frames[0])}" alt="StyleLock 360 preview">
+            <div class="stylelock-360-dots">${dots}</div>
+            <p class="stylelock-360-hint">Swipe to rotate</p>
+        </section>
+    `;
+}
 function achievabilityRank(value) {
     const ach = String(value || '').toLowerCase();
     if (ach === 'ready') return 3;
@@ -1392,6 +1447,7 @@ function renderResults() {
     }
 
     slTrack('looks_shown', { count: looks.length });
+    slTrack('paid_results_viewed', { count: looks.length });
 
     const heroIdx = getMostAchievableIndex(looks);
     const heroLook = looks[heroIdx];
@@ -1412,7 +1468,7 @@ function renderResults() {
             <article class="slide-card hero-card ${tierClass(heroLook.tier)}">
                 <div class="slide-image-wrap">
                     ${heroImageMarkup}
-                    <div class="achievable-badge">MOST ACHIEVABLE</div>
+                    <div class="achievable-badge">STYLELOCK PICK</div>
                     <div class="match-badge"><span class="pct">${heroPct}%</span><span class="copy">MATCH</span></div>
                     <div class="slide-note">${getTierNote(heroLook.tier)}</div>
                 </div>
@@ -1420,6 +1476,7 @@ function renderResults() {
                     <div class="slide-tier-row">
                         <div class="slide-tier-name">${safeText(heroLook.tier, 'LOOK')}</div>
                         <div class="readiness-tag readiness-hero">${safeText(readinessMap[heroIdx], 'Ready now')}</div>
+                        ${renderMiniIntelligenceTag(heroLook)}
                     </div>
                 </div>
                 <button class="btn-select hero-cta" onclick="lockLook(${heroIdx})">LOCK THIS LOOK</button>
@@ -1441,6 +1498,7 @@ function renderResults() {
                                 <div class="support-card-row">
                                     <div class="support-tier">${safeText(support.item.tier, 'LOOK')}</div>
                                     <div class="readiness-tag support-readiness">${safeText(readinessMap[support.idx], 'Future option')}</div>
+                                    ${renderMiniIntelligenceTag(support.item)}
                                 </div>
                                 <button class="support-cta" onclick="selectLook(${support.idx})">VIEW CUT CARD</button>
                             </div>
@@ -1528,11 +1586,17 @@ function renderCutcard(idx) {
                     <div class="cut-meta-value">${safeText(look.vibe)}</div>
                 </div>
             </div>
+            ${renderIntelligencePanel(look)}
             <div class="cutcard-sections">
                 <section class="cutcard-section">
-                    <div class="cutcard-label">BARBER BRIEF</div>
+                    <div class="cutcard-label">ASK FOR THIS</div>
                     <div class="cutcard-value">${safeText(look.name, safeText(look.tier, 'Look'))}</div>
                     <div class="cutcard-desc">Balanced for your current face shape, hair density, and what is actually reachable now.</div>
+                </section>
+                <section class="cutcard-section">
+                    <div class="cutcard-label">AVOID THIS</div>
+                    <div class="cutcard-value">Over-thinning or over-slicking</div>
+                    <div class="cutcard-desc">Keep the finish natural so the shape looks intentional, not forced.</div>
                 </section>
                 <section class="cutcard-section">
                     <div class="cutcard-label">TOP</div>
@@ -1553,6 +1617,11 @@ function renderCutcard(idx) {
                     <div class="cutcard-label">FRINGE</div>
                     <div class="cutcard-value">${safeText(look.fringe)}</div>
                     <div class="cutcard-desc">Ask your barber to keep the front balanced so it frames the face without collapsing into the eyes.</div>
+                </section>
+                <section class="cutcard-section">
+                    <div class="cutcard-label">MAINTENANCE</div>
+                    <div class="cutcard-value">${safeText(look.intelligence?.styling_guidance?.daily_effort, safeText(look.maintenance, 'Low-medium'))}</div>
+                    <div class="cutcard-desc">Product: ${safeText(look.intelligence?.styling_guidance?.product, safeText(look.products, 'Matte clay or lightweight paste'))}</div>
                 </section>
             </div>
         </article>
@@ -1588,6 +1657,17 @@ function openLockedPreview(idx, showStamp) {
     if (lockedBadge) {
         lockedBadge.classList.toggle('hidden', !lockedStampVisible);
     }
+
+    const panel = byId('lockedIntelligencePanel');
+    if (panel) {
+        const intelligenceHtml = renderIntelligencePanel(look);
+        const preview360Html = renderStyleLock360(look);
+        const panelHtml = `${intelligenceHtml}${preview360Html}`;
+        panel.innerHTML = panelHtml;
+        panel.hidden = !panelHtml.trim();
+        if (intelligenceHtml.trim()) slTrack('intelligence_panel_viewed', { look: slLookTier(idx), idx });
+        if (preview360Html.trim()) slTrack('360_viewed', { look: slLookTier(idx), idx });
+    }
     show('lockedScreen');
 }
 
@@ -1606,12 +1686,15 @@ function showBarber() {
         <article class="barber-sheet">
             ${look.image ? `<img class="barber-photo" src="${escapeHtml(look.image)}" alt="${escapeHtml(look.name)}">` : `<div class="slide-image-placeholder">Preview unavailable</div>`}
             <div class="barber-rows">
+                <div class="barber-row"><div class="barber-label">ASK FOR THIS</div><div class="barber-value">${safeText(look.name, safeText(look.tier, 'Look'))}</div></div>
+                <div class="barber-row"><div class="barber-label">AVOID THIS</div><div class="barber-value">Over-thinning or over-slicking</div></div>
                 <div class="barber-row"><div class="barber-label">SIDES</div><div class="barber-value">${safeText(look.sides)}</div></div>
                 <div class="barber-row"><div class="barber-label">TOP</div><div class="barber-value">${safeText(look.top_length)}</div></div>
                 <div class="barber-row"><div class="barber-label">TEXTURE</div><div class="barber-value">${safeText(look.texture)}</div></div>
                 <div class="barber-row"><div class="barber-label">FRINGE</div><div class="barber-value">${safeText(look.fringe)}</div></div>
                 <div class="barber-row"><div class="barber-label">STYLING</div><div class="barber-value">${safeText(look.styling)}</div></div>
-                <div class="barber-row"><div class="barber-label">PRODUCTS</div><div class="barber-value">${safeText(look.products)}</div></div>
+                <div class="barber-row"><div class="barber-label">PRODUCT</div><div class="barber-value">${safeText(look.intelligence?.styling_guidance?.product, safeText(look.products))}</div></div>
+                <div class="barber-row"><div class="barber-label">MAINTENANCE</div><div class="barber-value">${safeText(look.intelligence?.styling_guidance?.daily_effort, safeText(look.maintenance, 'Low-medium'))}</div></div>
             </div>
 
             <div class="barber-brand-strip">
@@ -1789,7 +1872,10 @@ function bindEvents() {
             showUserError(error.message || 'Unable to start your free look');
         }
     });
-    byId('unlockAllBtn').addEventListener('click', startPayment);
+    byId('unlockAllBtn').addEventListener('click', () => {
+        slTrack('unlock_full_kit_clicked', { value: 79, currency: 'INR' });
+        startPayment();
+    });
     byId('waitlistPaidBtn').addEventListener('click', startPaidFromBlockedState);
     byId('saveFreeLookBtn').addEventListener('click', () => {
         saveFreeLookToPhone().catch((error) => {
