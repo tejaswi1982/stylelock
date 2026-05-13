@@ -164,6 +164,7 @@ src="https://www.facebook.com/tr?id=1868174307106082&ev=PageView&noscript=1"
         <div class="results-heading">
             <h1 class="results-title">YOUR <span class="accent">3</span> LOOKS</h1>
             <p class="results-subtitle">Chosen for your face, hair, right now.</p>
+            <p class="results-cutlogic-credit">Ranked by StyleLock CutLogic&trade;</p>
         </div>
     </div>
     <div class="results-carousel-wrap">
@@ -188,8 +189,10 @@ src="https://www.facebook.com/tr?id=1868174307106082&ev=PageView&noscript=1"
         <img id="lockedPhoto" src="" alt="">
     </div>
     <div class="locked-badge">LOCKED</div>
+    <!-- CutLogic Read sits between the image and the action buttons so it
+         reads as the recommendation that justifies the look. -->
+    <div class="locked-intelligence-panel" id="lockedIntelligencePanel" hidden></div>
     <div class="locked-actions">
-        <div class="locked-intelligence-panel" id="lockedIntelligencePanel" hidden></div>
         <button class="btn-barber" onclick="showBarber()">SHOW YOUR BARBER</button>
         <button class="btn-save" onclick="saveToPhone()">SAVE TO PHONE</button>
         <button class="btn-restart" onclick="startOver()">START OVER</button>
@@ -201,6 +204,7 @@ src="https://www.facebook.com/tr?id=1868174307106082&ev=PageView&noscript=1"
         <button class="btn-back btn-back-results" onclick="backToResults()">&#8592; BACK TO RESULTS</button>
         <span class="barber-title">BARBER MODE</span>
     </div>
+    <p class="barber-cutlogic-line">CutLogic translated into barber instructions.</p>
     <div class="barber-content" id="barberContent"></div>
 </div>
 
