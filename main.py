@@ -22,7 +22,7 @@ import hashlib
 import sys
 import sqlite3
 from datetime import datetime, timezone, timedelta
-from typing import Optional, Tuple, Dict, Any
+from typing import Optional, Tuple, Dict, Any, List
 from pathlib import Path
 
 import httpx
@@ -44,7 +44,7 @@ RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "")
 REMOVEBG_API_KEY = os.getenv("REMOVEBG_API_KEY", "")
 FREEIMAGE_API_KEY = os.getenv("FREEIMAGE_API_KEY", "6d207e02198a847aa98d0a2a901485a5")
 ENABLE_BG_REMOVAL = os.getenv("ENABLE_BG_REMOVAL", "true").lower() == "true"
-APP_VERSION = os.getenv("APP_VERSION", "v54.6")
+APP_VERSION = os.getenv("APP_VERSION", "v54.7")
 PAYMENT_TOKEN_TTL_SECONDS = int(os.getenv("PAYMENT_TOKEN_TTL_SECONDS", "900"))
 FREE_LOOK_DAILY_CAP = int(os.getenv("FREE_LOOK_DAILY_CAP", "40"))
 FREE_LOOK_DAILY_BUDGET_RUPEES = int(os.getenv("FREE_LOOK_DAILY_BUDGET_RUPEES", "500"))
@@ -579,6 +579,41 @@ def store_free_session(session_id: str, payload: dict) -> None:
     FREE_LOOK_SESSIONS[session_id] = payload
 
 
+def is_valid_generated_image_url(value: Any) -> bool:
+    """VModel outputs must be real hosted image URLs, never placeholders."""
+    url = str(value or "").strip()
+    return url.startswith("http://") or url.startswith("https://")
+
+
+def generation_status(status: str, image_url: str = "", error: str = "") -> dict:
+    return {
+        "status": status,
+        "image_url": image_url if is_valid_generated_image_url(image_url) else "",
+        "error": str(error or ""),
+    }
+
+
+def ensure_paid_retry_token(session_payload: dict) -> str:
+    """Paid users can retry failed generated looks without paying again."""
+    token = str(session_payload.get("paid_retry_token") or "").strip()
+    if not token:
+        token = secrets.token_urlsafe(24)
+        session_payload["paid_retry_token"] = token
+    return token
+
+
+def look_status_payload(looks: list[dict]) -> list[dict]:
+    return [
+        {
+            "id": look.get("id"),
+            "status": look.get("status") or look.get("generation", {}).get("status", "pending"),
+            "image_url": look.get("image_url") or look.get("image") or look.get("generation", {}).get("image_url", ""),
+            "error": look.get("error") or look.get("generation", {}).get("error", ""),
+        }
+        for look in looks
+    ]
+
+
 def count_claims_for_day(claim_date: str) -> int:
     conn = get_db_connection()
     try:
@@ -776,70 +811,296 @@ def _unique_tags(tags: list[str], limit: int = 5) -> list[str]:
     return output
 
 
-def build_stylelock_intelligence(rec: dict, analysis: Optional[dict] = None, rank: int = 0) -> dict:
-    """Compact V2 recommendation metadata. Deterministic fallback keeps paid flow resilient."""
+# =============================================================================
+# STYLELOCK CUTLOGIC™ — proprietary recommendation layer
+# =============================================================================
+# Vision (Claude) observes. CutLogic decides.
+# CutLogic converts raw vision observations into a haircut decision: ranks the
+# looks, labels each with a role, explains why one wins, estimates achievability,
+# flags growth needed, flags barber execution risk, and gives a practical
+# watchout. Each look gets a structured CutLogic Read.
+
+def _cutlogic_role_for(rank: int, tier: str, achievability: str) -> str:
+    """Map rank + tier + achievability to a single canonical role label."""
+    if rank == 0:
+        return "StyleLock Pick"
+    if rank == 1:
+        if tier == "CLEAN":
+            return "Cleanest Upgrade"
+        if tier == "BOLD":
+            return "Bold Shift"
+        return "Best Achievable Now"
+    # rank 2
+    if achievability != "ready":
+        return "Future Option"
+    if tier == "BOLD":
+        return "Bold Shift"
+    if tier == "CLEAN":
+        return "Office-Safe Upgrade"
+    return "Sharper Change"
+
+
+def _cutlogic_cut_risk(tier: str) -> str:
+    """How risky is this for a competent barber to execute well?"""
+    if tier == "CLEAN":
+        return "Low"
+    if tier == "BOLD":
+        return "Medium–High"
+    return "Low–Medium"
+
+
+def _cutlogic_transformation(rank: int, tier: str, achievability: str) -> str:
+    """How big a change is this from the user's current look?"""
+    if rank == 0 and achievability == "ready":
+        return "Safe upgrade"
+    if rank == 2 or tier == "BOLD":
+        return "Bold move"
+    return "Noticeable shift"
+
+
+def _cutlogic_growth(achievability: str) -> str:
+    if achievability == "ready":
+        return "None"
+    if achievability == "grow":
+        return "2–4 weeks of top growth"
+    if achievability == "dream":
+        return "4–8 weeks of length"
+    return "None"
+
+
+def _cutlogic_maintenance(rec_maintenance: str) -> str:
+    m = (rec_maintenance or "").lower()
+    if "high" in m:
+        return "Medium–High"
+    if "low" in m and "med" in m:
+        return "Low–Medium"
+    if "low" in m:
+        return "Low"
+    if "med" in m or "moderate" in m:
+        return "Medium"
+    return "Low–Medium"
+
+
+def _cutlogic_headline(rank: int, tier: str, achievability: str) -> str:
+    if rank == 0 and achievability == "ready":
+        return "Best low-risk upgrade"
+    if rank == 0 and achievability != "ready":
+        return "Best fit, with a little growth"
+    if rank == 1 and tier == "CLEAN":
+        return "Safer, cleaner move"
+    if rank == 1 and tier == "BOLD":
+        return "Stronger, still doable"
+    if rank == 1:
+        return "Solid alternative"
+    if achievability != "ready":
+        return "Future option"
+    if tier == "BOLD":
+        return "Bold direction"
+    return "Sharper change"
+
+
+def _cutlogic_why_this_wins(rank: int, tier: str, achievability: str,
+                            analysis: dict) -> str:
+    """1–2 crisp sentences that explain the recommendation, not the face."""
+    has_beard = bool(analysis.get("beard") or analysis.get("beard_density"))
+    density = str(analysis.get("hair_density") or "").lower()
+    texture = str(analysis.get("hair_texture") or "").lower()
+    is_curly = ("wavy" in texture) or ("curly" in texture) or ("coily" in texture)
+
+    if rank == 0 and achievability == "ready":
+        if has_beard:
+            return ("Your current top length already supports this shape. "
+                    "Cleaner sides make the beard work harder for you and "
+                    "sharpen the face without making the change feel forced.")
+        if is_curly:
+            return ("Your current top length already supports this shape. "
+                    "Controlled texture on top keeps your natural movement "
+                    "while the sides do the sharpening work.")
+        return ("Your current top length already supports this shape. "
+                "Cleaner sides sharpen the face without making the change "
+                "feel forced.")
+
+    if rank == 0 and achievability != "ready":
+        return ("Strongest fit overall, but it needs a little more top length "
+                "to land properly. Worth the short wait.")
+
+    if rank == 1 and tier == "CLEAN":
+        return ("Easier to maintain than the pick and reads sharp in any "
+                "setting. A safer move if you want low daily effort.")
+
+    if rank == 1 and tier == "BOLD":
+        return ("A stronger direction than the pick, still realistic to "
+                "execute. More shape, more presence.")
+
+    if rank == 1:
+        return ("A clean alternative to the pick — slightly different shape, "
+                "same easy execution.")
+
+    if rank == 2 and achievability != "ready":
+        return ("Biggest payoff of the three, but parked for later. Plan it "
+                "in once you have the length to back it up.")
+
+    if rank == 2 and tier == "BOLD":
+        return ("Highest-impact option. Bigger commitment on styling and "
+                "maintenance, but the shape change is real.")
+
+    return ("A solid second move if the pick isn't your read. Same shape "
+            "logic, slightly different finish.")
+
+
+def _cutlogic_barber_watchout(tier: str, achievability: str) -> str:
+    """One crisp practical warning a barber should hear."""
+    if achievability != "ready":
+        return "Don't shorten the top this visit — it needs growth to land properly."
+    if tier == "BOLD":
+        return "Watch the blend. Ask for shape, not just short sides."
+    if tier == "CLEAN":
+        return "Keep the line clean, not skin-tight. Don't over-fade."
+    return "Don't over-thin or over-slick the top. Keep controlled texture."
+
+
+def _cutlogic_short_tags(rank: int, tier: str, achievability: str, has_beard: bool) -> List[str]:
+    """3 sharp chips for the panel — practical, not adjectival."""
+    tags: List[str] = []
+
+    if rank == 0:
+        tags.append("StyleLock Pick")
+
+    if achievability == "ready":
+        tags.append("No growth needed")
+    elif achievability == "grow":
+        tags.append("Needs short growth")
+    else:
+        tags.append("Future option")
+
+    if tier == "CLEAN":
+        tags.append("Low barber risk")
+    elif tier == "BOLD":
+        tags.append("Higher commitment")
+    else:
+        tags.append("Low barber risk")
+
+    if rank == 0 and has_beard:
+        tags.append("Sharpens the face")
+    elif tier == "CLEAN":
+        tags.append("Office-safe")
+    elif tier == "BOLD":
+        tags.append("More shape")
+    else:
+        tags.append("Sharpens the face")
+
+    # Dedupe while preserving order, cap at 3.
+    seen = set()
+    out: List[str] = []
+    for t in tags:
+        if t not in seen:
+            seen.add(t)
+            out.append(t)
+        if len(out) >= 3:
+            break
+    return out
+
+
+def build_cutlogic_read(rec: dict, analysis: Optional[dict] = None, rank: int = 0) -> dict:
+    """StyleLock CutLogic™ — proprietary haircut decisioning.
+
+    Returns a structured CutLogic Read for one look. The shape is the v2 contract
+    consumed by the frontend; legacy `intelligence` keys (achievability_score,
+    achievability_label, tags, recommendation, barber_note, styling_guidance,
+    title) are mirrored alongside so older readers keep working without churn.
+
+    Falls back to a coherent default when vision data is sparse. Never returns
+    blank/null user-facing fields.
+    """
     if not STYLELOCK_INTELLIGENCE_ENABLED:
         return {}
 
     analysis = analysis or {}
     tier = str(rec.get("tier") or "TRENDING").upper()
+    if tier not in {"BOLD", "CLEAN", "TRENDING"}:
+        tier = "TRENDING"
     achievability = str(rec.get("achievability") or "ready").lower()
-    maintenance = str(rec.get("maintenance") or "").lower()
+    if achievability not in {"ready", "grow", "dream"}:
+        achievability = "ready"
+
     match = int(rec.get("match_percentage") or 80)
-    score_bonus = 4 if achievability == "ready" else 0
-    achievability_score = max(70, min(99, match + score_bonus))
-
-    tags = []
+    # stylelock_fit is the headline 0–100 score. Hero gets a small bonus so
+    # the pick reads clearly; secondary looks taper down by rank.
     if rank == 0:
-        tags.append("StyleLock pick")
+        stylelock_fit = max(85, min(99, match + 5))
+    elif rank == 1:
+        stylelock_fit = max(78, min(94, match))
+    else:
+        stylelock_fit = max(72, min(90, match - 2))
+
     if achievability == "ready":
-        tags.append("Best achievable now")
-        tags.append("Works with current length")
+        ach_score = max(88, min(99, match + 8))
+    elif achievability == "grow":
+        ach_score = max(60, min(82, match - 6))
     else:
-        tags.append("Needs some growth")
-    if analysis.get("hair_density"):
-        tags.append("Works with your hair density")
-    if analysis.get("face_shape"):
-        tags.append("Suits your face shape")
-    if "low" in maintenance:
-        tags.append("Low daily effort")
-    if tier == "CLEAN":
-        tags.append("Clean professional finish")
-    elif tier == "BOLD":
-        tags.append("Adds height")
-    else:
-        tags.append("Barber-friendly cut")
+        ach_score = max(40, min(70, match - 18))
 
-    recommendation = "Recommended because it sharpens your profile without needing major growth."
-    if achievability != "ready":
-        recommendation = "Recommended as a strong direction once your top length grows in."
-    elif tier == "CLEAN":
-        recommendation = "Recommended because it gives you a sharper finish with low daily effort."
-    elif tier == "BOLD":
-        recommendation = "Recommended because it adds shape and presence while staying barber-executable."
+    ach_label = {
+        "ready": "Achievable now",
+        "grow":  "Needs 2–4 weeks",
+        "dream": "Future option",
+    }.get(achievability, "Achievable now")
 
-    styling_effort = "Low-medium"
-    if "low" in maintenance:
+    role = _cutlogic_role_for(rank, tier, achievability)
+    headline = _cutlogic_headline(rank, tier, achievability)
+    why = _cutlogic_why_this_wins(rank, tier, achievability, analysis)
+    watchout = _cutlogic_barber_watchout(tier, achievability)
+    has_beard = bool(analysis.get("beard") or analysis.get("beard_density"))
+    short_tags = _cutlogic_short_tags(rank, tier, achievability, has_beard)
+
+    # Legacy styling_guidance — Barber Mode + Cut Card read these.
+    rec_maint = str(rec.get("maintenance") or "")
+    maint_label = _cutlogic_maintenance(rec_maint)
+    if "low" in rec_maint.lower() and "med" not in rec_maint.lower():
         styling_effort = "Low"
-    elif "high" in maintenance:
+    elif "high" in rec_maint.lower():
         styling_effort = "Medium-high"
-
-    products = rec.get("cut_card", {}).get("products") or rec.get("products") or "Matte clay or lightweight paste"
-    styling = rec.get("cut_card", {}).get("styling") or rec.get("styling") or "Work through with fingers and keep texture loose, not slick."
+    else:
+        styling_effort = "Low-medium"
+    products = (rec.get("cut_card", {}).get("products")
+                or rec.get("products")
+                or "Matte clay or lightweight paste")
+    styling = (rec.get("cut_card", {}).get("styling")
+               or rec.get("styling")
+               or "Work through with fingers and keep texture loose, not slick.")
 
     return {
-        "title": "STYLELOCK INTELLIGENCE",
-        "achievability_score": achievability_score,
-        "achievability_label": f"{achievability_score}% achievable now",
-        "tags": _unique_tags(tags, 5),
-        "recommendation": recommendation,
-        "barber_note": "Barber-friendly cut built around your current face shape, hair density, and growth pattern.",
+        # ---- NEW v2 CutLogic contract ----
+        "stylelock_fit": stylelock_fit,
+        "headline": headline,
+        "achievable_now": {"score": ach_score, "label": ach_label},
+        "growth_needed": {"label": _cutlogic_growth(achievability)},
+        "cut_risk": {"label": _cutlogic_cut_risk(tier)},
+        "maintenance": {"label": maint_label},
+        "transformation_level": {"label": _cutlogic_transformation(rank, tier, achievability)},
+        "recommendation_role": role,
+        "why_this_wins": why,
+        "barber_watchout": watchout,
+        "short_tags": short_tags,
+
+        # ---- Legacy keys kept for backward compat (Barber Mode / Cut Card readers) ----
+        "title": "POWERED BY STYLELOCK CUTLOGIC™",  # ™
+        "achievability_score": ach_score,
+        "achievability_label": f"{ach_score}% {ach_label.lower()}",
+        "tags": short_tags,
+        "recommendation": why,
+        "barber_note": watchout,
         "styling_guidance": {
             "product": products,
             "daily_effort": styling_effort,
             "instruction": styling,
         },
     }
+
+
+def build_stylelock_intelligence(rec: dict, analysis: Optional[dict] = None, rank: int = 0) -> dict:
+    """Backward-compatible alias. New callers should use build_cutlogic_read."""
+    return build_cutlogic_read(rec, analysis, rank)
 
 
 def build_stylelock_360_payload(rank: int = 0) -> dict:
@@ -861,15 +1122,41 @@ def format_look_payload(rec: dict, analysis: Optional[dict] = None, rank: int = 
         tier = "TRENDING"
 
     full_name = rec.get("name") or rec.get("id", "Identity Look").replace("_", " ").title()
-    intelligence = build_stylelock_intelligence(rec, analysis, rank)
+    cutlogic = build_cutlogic_read(rec, analysis, rank)
+    # `intelligence` is the legacy key; mirror the CutLogic object so existing
+    # readers (Barber Mode / Cut Card) keep working without churn.
+    intelligence = cutlogic
     styling_guidance = intelligence.get("styling_guidance", {}) if intelligence else {}
+
+    generation = rec.get("generation") if isinstance(rec.get("generation"), dict) else None
+    preview_url = str(rec.get("preview_url") or "").strip()
+    image_url = preview_url if is_valid_generated_image_url(preview_url) else ""
+    has_explicit_generation_state = bool(generation) or "generation_status" in rec or "generation_error" in rec
+    status = str(rec.get("generation_status") or (generation or {}).get("status") or ("ready" if image_url else "pending")).strip()
+    error = str(rec.get("generation_error") or (generation or {}).get("error") or "").strip()
+
+    # Legacy direct paid flow may still use static placeholders. The V2 paid-upgrade
+    # path sets explicit generation state, so missing VModel output stays failed/pending.
+    if not image_url and not has_explicit_generation_state:
+        image_url = f"/static/images/hairstyle_{tier.lower()}.jpg"
+        status = "ready"
+
+    if status == "ready" and not image_url:
+        status = "failed"
+        error = error or "Missing generated image URL"
+
+    generation_payload = generation_status(status, image_url, error)
     return {
         "id": rec.get("id", tier.lower()),
         "tier": tier,
         "name": full_name,
         "full_name": full_name,
         "look_category": rec.get("look_category") or tier.title(),
-        "image": rec.get("preview_url") or f"/static/images/hairstyle_{tier.lower()}.jpg",
+        "image": image_url,
+        "image_url": image_url,
+        "status": generation_payload["status"],
+        "error": generation_payload["error"],
+        "generation": generation_payload,
         "match_percentage": rec.get("match_percentage", 80),
         "achievability": rec.get("achievability", "ready"),
         "achievability_score": intelligence.get("achievability_score") if intelligence else rec.get("match_percentage", 80),
@@ -881,6 +1168,9 @@ def format_look_payload(rec: dict, analysis: Optional[dict] = None, rank: int = 
         "products": rec.get("cut_card", {}).get("products", styling_guidance.get("product", "")),
         "styling": rec.get("cut_card", {}).get("styling", styling_guidance.get("instruction", "")),
         "fringe": rec.get("cut_card", {}).get("fringe", ""),
+        # CutLogic Read — the proprietary decisioning object. `intelligence` is
+        # the legacy key kept for backward compat and points at the same dict.
+        "cutlogic": cutlogic,
         "intelligence": intelligence,
         "stylelock_360": build_stylelock_360_payload(rank),
         "is_stylelock_pick": rank == 0,
@@ -1142,75 +1432,104 @@ def score_and_recommend(analysis: dict, vibe: str = "balanced") -> list:
 # HELPER FUNCTIONS - VMODEL Generation (CORRECT API)
 # =============================================================================
 
-async def generate_hairstyle_vmodel(target_url: str, look: dict) -> Optional[str]:
-    """Generate hairstyle using VMODEL async task API"""
+def log_vmodel_failure(
+    look: dict,
+    target_url: str,
+    source_url: str,
+    reason: str,
+    status_code: Optional[int] = None,
+    response_body: Any = None,
+) -> None:
+    body = ""
+    if response_body is not None:
+        try:
+            body = json.dumps(response_body) if not isinstance(response_body, str) else response_body
+        except Exception:
+            body = str(response_body)
+    if len(body) > 1200:
+        body = body[:1200] + "..."
+    print(
+        "[vmodel-failure] "
+        f"look_type={look.get('tier', '')} look_id={look.get('id', '')} look_name={look.get('name', '')} "
+        f"source_image={source_url} target_image={target_url} status_code={status_code} "
+        f"reason={reason} response_body={body}"
+    )
+
+
+async def generate_hairstyle_vmodel(target_url: str, look: dict) -> dict:
+    """Generate hairstyle using VMODEL async task API and return strict per-look status."""
     name = look.get("name", "Unknown")
     source = look.get("reference_url", "")
-    
+
     if not source:
-        print(f"    [{name}] ❌ No reference URL")
-        return None
-    
+        log_vmodel_failure(look, target_url, source, "missing_reference_url")
+        return generation_status("failed", "", "Missing reference URL")
+
     if not VMODEL_API_KEY:
-        print(f"    [{name}] ❌ No VMODEL key")
-        return None
-    
+        log_vmodel_failure(look, target_url, source, "missing_vmodel_key")
+        return generation_status("failed", "", "VModel key is not configured")
+
     print(f"    [{name}] Calling VModel...")
-    
+
     headers = {
         "Authorization": f"Bearer {VMODEL_API_KEY}",
         "Content-Type": "application/json"
     }
-    
+
     payload = {
         "version": VMODEL_HAIRSTYLE_VERSION,
         "input": {
-            "source": source,      # Hairstyle reference image
-            "target": target_url,  # User's selfie
+            "source": source,
+            "target": target_url,
             "disable_safety_checker": False
         }
     }
-    
+
     async with httpx.AsyncClient(timeout=180) as client:
         try:
-            # Create task
             resp = await client.post(VMODEL_API_URL, headers=headers, json=payload)
+            response_text = resp.text
             if resp.status_code != 200:
-                print(f"    [{name}] ❌ Create failed: {resp.status_code}")
-                return None
-            
+                log_vmodel_failure(look, target_url, source, "create_failed", resp.status_code, response_text)
+                return generation_status("failed", "", f"VModel create failed ({resp.status_code})")
+
             data = resp.json()
-            
-            # Check if immediately succeeded
+
             if data.get("status") == "succeeded" and data.get("output"):
                 output = data["output"]
                 url = output[0] if isinstance(output, list) else output
-                print(f"    [{name}] ✅ Done (immediate)!")
-                return url
-            
-            # Get task ID for polling
+                if is_valid_generated_image_url(url):
+                    print(f"    [{name}] Done (immediate)!")
+                    return generation_status("ready", url, "")
+                log_vmodel_failure(look, target_url, source, "invalid_immediate_output", resp.status_code, data)
+                return generation_status("failed", "", "VModel returned invalid image URL")
+
             task_id = (
                 data.get("result", {}).get("task_id") or
                 data.get("task_id") or
                 data.get("id")
             )
-            
+
             if not task_id:
-                print(f"    [{name}] ❌ No task ID")
-                return None
-            
-            # Poll for completion (up to 2 minutes)
+                log_vmodel_failure(look, target_url, source, "missing_task_id", resp.status_code, data)
+                return generation_status("failed", "", "VModel did not return a task id")
+
+            last_status = "pending"
+            last_body = None
             for _ in range(40):
                 await asyncio.sleep(3)
-                
+
                 poll = await client.get(f"{VMODEL_TASK_URL}/{task_id}", headers=headers)
+                last_body = poll.text
                 if poll.status_code != 200:
+                    log_vmodel_failure(look, target_url, source, "poll_failed", poll.status_code, last_body)
                     continue
-                
+
                 pdata = poll.json()
                 rd = pdata.get("result", pdata)
                 status = rd.get("status") or pdata.get("status", "")
-                
+                last_status = status
+
                 if status in ["succeeded", "completed", "success", "done"]:
                     out = (
                         rd.get("output") or
@@ -1220,37 +1539,49 @@ async def generate_hairstyle_vmodel(target_url: str, look: dict) -> Optional[str
                     )
                     if out:
                         url = out[0] if isinstance(out, list) else out
-                        print(f"    [{name}] ✅ Done!")
-                        return url
-                    return None
-                
+                        if is_valid_generated_image_url(url):
+                            print(f"    [{name}] Done!")
+                            return generation_status("ready", url, "")
+                    log_vmodel_failure(look, target_url, source, "missing_or_invalid_output", poll.status_code, pdata)
+                    return generation_status("failed", "", "VModel returned no usable image URL")
+
                 if status in ["failed", "error", "cancelled"]:
-                    print(f"    [{name}] ❌ Task failed: {status}")
-                    return None
-            
-            print(f"    [{name}] ⚠️ Timeout")
-            return None
-            
+                    log_vmodel_failure(look, target_url, source, f"task_{status}", poll.status_code, pdata)
+                    return generation_status("failed", "", f"VModel task {status}")
+
+            log_vmodel_failure(look, target_url, source, f"timeout_last_status_{last_status}", None, last_body)
+            return generation_status("failed", "", "VModel task timed out")
+
         except Exception as e:
-            print(f"    [{name}] ❌ Exception: {e}")
-            return None
+            log_vmodel_failure(look, target_url, source, "exception", None, str(e))
+            return generation_status("failed", "", str(e))
 
 async def generate_all_previews(target_url: str, looks: list) -> list:
-    """Generate all previews in parallel"""
-    print("  🎨 Generating 3 previews (parallel)...")
-    
+    """Generate all previews in parallel."""
+    print("  Generating 3 previews (parallel)...")
+
     tasks = [generate_hairstyle_vmodel(target_url, l) for l in looks]
     results = await asyncio.gather(*tasks, return_exceptions=True)
-    
+
+    success_count = 0
     for i, (look, res) in enumerate(zip(looks, results)):
-        if res and not isinstance(res, Exception):
-            looks[i]["preview_url"] = res
+        if isinstance(res, Exception):
+            look["preview_url"] = ""
+            look["generation_status"] = "failed"
+            look["generation_error"] = str(res)
+            look["generation"] = generation_status("failed", "", str(res))
+            continue
+        look["generation"] = res
+        look["generation_status"] = res.get("status", "failed")
+        look["generation_error"] = res.get("error", "")
+        if res.get("status") == "ready" and is_valid_generated_image_url(res.get("image_url")):
+            looks[i]["preview_url"] = res["image_url"]
+            success_count += 1
         else:
-            looks[i]["preview_url"] = None
-    
-    success_count = sum(1 for r in results if r and not isinstance(r, Exception))
-    print(f"  ✅ Generated {success_count}/3")
-    
+            looks[i]["preview_url"] = ""
+
+    print(f"  Generated {success_count}/3")
+
     return looks
 
 # =============================================================================
@@ -1359,8 +1690,12 @@ async def preprocess_for_free_look(image_base64: str) -> Tuple[dict, str]:
 
 
 async def generate_selected_previews(target_url: str, looks: list[dict]) -> list[dict]:
-    """Generate only the previews we still need, preserving already-generated looks."""
-    pending = [look for look in looks if not look.get("preview_url")]
+    """Generate only previews still needed, preserving strict per-look status."""
+    pending = [look for look in looks if not is_valid_generated_image_url(look.get("preview_url"))]
+    for look in looks:
+        if is_valid_generated_image_url(look.get("preview_url")):
+            look["generation_status"] = "ready"
+            look["generation"] = generation_status("ready", look.get("preview_url", ""), "")
     if not pending:
         return looks
 
@@ -1371,13 +1706,23 @@ async def generate_selected_previews(target_url: str, looks: list[dict]) -> list
         return_exceptions=True,
     )
     duration_ms = int((time.perf_counter() - started) * 1000)
-    success_count = sum(1 for preview in generated if preview and not isinstance(preview, Exception))
+    success_count = 0
+
+    for look, result in zip(pending, generated):
+        if isinstance(result, Exception):
+            status_payload = generation_status("failed", "", str(result))
+        else:
+            status_payload = result
+        look["generation"] = status_payload
+        look["generation_status"] = status_payload.get("status", "failed")
+        look["generation_error"] = status_payload.get("error", "")
+        if status_payload.get("status") == "ready" and is_valid_generated_image_url(status_payload.get("image_url")):
+            look["preview_url"] = status_payload["image_url"]
+            success_count += 1
+        else:
+            look["preview_url"] = ""
+
     print(f"[vmodel] end duration_ms={duration_ms} success_count={success_count} total={len(pending)}")
-
-    for look, preview in zip(pending, generated):
-        if preview and not isinstance(preview, Exception):
-            look["preview_url"] = preview
-
     return looks
 
 # =============================================================================
@@ -1702,6 +2047,9 @@ async def generate_paid_upgrade(request: Request):
             status_code=400,
         )
 
+    retry_token = ensure_paid_retry_token(session_payload)
+    session_payload["paid_unlocked"] = True
+
     try:
         recommendations = list(session_payload.get("recommendations") or [])
         target_url = session_payload.get("target_url")
@@ -1712,14 +2060,17 @@ async def generate_paid_upgrade(request: Request):
 
         free_look_id = session_payload.get("free_look_id")
         selected = []
-        free_rec = next((look for look in recommendations if look.get("id") == free_look_id), None)
+        free_rec = next((dict(look) for look in recommendations if look.get("id") == free_look_id), None)
         if free_rec:
-            free_rec["preview_url"] = session_payload["free_look"]["image"]
+            free_image = session_payload["free_look"].get("image") or session_payload["free_look"].get("image_url")
+            free_rec["preview_url"] = free_image
+            free_rec["generation_status"] = "ready"
+            free_rec["generation"] = generation_status("ready", free_image, "")
             selected.append(free_rec)
         for look in recommendations:
             if look.get("id") == free_look_id:
                 continue
-            selected.append(look)
+            selected.append(dict(look))
             if len(selected) == 3:
                 break
 
@@ -1728,26 +2079,105 @@ async def generate_paid_upgrade(request: Request):
             remaining_paid = selected[1:3]
             generated_remaining = await generate_selected_previews(target_url, remaining_paid) if remaining_paid else []
             selected = [preserved_free, *generated_remaining]
+
         formatted = [format_look_payload(look, session_payload.get("analysis"), idx) for idx, look in enumerate(selected[:3])]
+        all_ready = all(look.get("status") == "ready" and is_valid_generated_image_url(look.get("image")) for look in formatted)
 
         store_free_session(
             session_id,
             {
                 **session_payload,
+                "target_url": target_url,
                 "full_results": formatted,
                 "paid_unlocked": True,
+                "paid_retry_token": retry_token,
             },
         )
 
         elapsed = time.time() - start_time
         return {
             "success": True,
+            "payment_verified": True,
+            "paid_generation_complete": all_ready,
+            "can_retry": not all_ready,
+            "retry_token": retry_token,
             "looks": formatted,
+            "look_statuses": look_status_payload(formatted),
             "processing_time": round(elapsed, 1),
         }
     except Exception as exc:
-        print(f"❌ PAID UPGRADE ERROR: {exc}")
-        return JSONResponse({"success": False, "error": str(exc)}, status_code=500)
+        store_free_session(
+            session_id,
+            {
+                **session_payload,
+                "paid_unlocked": True,
+                "paid_retry_token": retry_token,
+            },
+        )
+        print(f"PAID UPGRADE ERROR payment_verified=true retry_available=true error={exc}")
+        return JSONResponse(
+            {
+                "success": False,
+                "payment_verified": True,
+                "can_retry": True,
+                "retry_token": retry_token,
+                "error": "Payment verified. Generation paused and can be retried.",
+                "detail": str(exc),
+            },
+            status_code=500,
+        )
+
+
+@app.post("/api/retry-paid-look")
+async def retry_paid_look(request: Request):
+    """Retry a failed paid look without requiring another Razorpay payment."""
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse({"success": False, "error": "Invalid request body"}, status_code=400)
+
+    session_id = str(data.get("session_id", "")).strip()
+    retry_token = str(data.get("retry_token", "")).strip()
+    look_index = data.get("look_index")
+    look_id = str(data.get("look_id", "")).strip()
+
+    session_payload = get_free_session(session_id)
+    if not session_payload or not session_payload.get("paid_unlocked"):
+        return JSONResponse({"success": False, "error": "Paid session not found"}, status_code=403)
+    if not retry_token or retry_token != str(session_payload.get("paid_retry_token", "")):
+        return JSONResponse({"success": False, "error": "Retry token is invalid"}, status_code=403)
+
+    full_results = list(session_payload.get("full_results") or [])
+    try:
+        idx = int(look_index)
+    except Exception:
+        idx = next((i for i, look in enumerate(full_results) if str(look.get("id")) == look_id), -1)
+    if idx < 0 or idx >= len(full_results):
+        return JSONResponse({"success": False, "error": "Look not found"}, status_code=404)
+
+    current = full_results[idx]
+    if current.get("status") == "ready" and is_valid_generated_image_url(current.get("image")):
+        return {"success": True, "look": current, "looks": full_results, "look_statuses": look_status_payload(full_results)}
+
+    target_url = session_payload.get("target_url")
+    recommendations = list(session_payload.get("recommendations") or [])
+    source_rec = next((dict(look) for look in recommendations if look.get("id") == current.get("id")), None)
+    if not target_url or not source_rec:
+        return JSONResponse({"success": False, "error": "Retry data is unavailable"}, status_code=400)
+
+    generated = await generate_selected_previews(target_url, [source_rec])
+    formatted = format_look_payload(generated[0], session_payload.get("analysis"), idx)
+    full_results[idx] = formatted
+    store_free_session(session_id, {**session_payload, "full_results": full_results})
+
+    return {
+        "success": True,
+        "look": formatted,
+        "looks": full_results,
+        "look_statuses": look_status_payload(full_results),
+        "can_retry": formatted.get("status") != "ready",
+    }
+
 
 @app.post("/api/create-order")
 async def create_razorpay_order():
