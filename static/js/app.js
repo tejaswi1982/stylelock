@@ -32,6 +32,7 @@ const META_IN_APP_BROWSER_REGEX = /(Instagram|FBAN|FBAV|FB_IAB|Messenger)/i;
 let freeLookResult = null;
 let freeClaimToken = '';
 let freeLookStatus = null;
+let paidRetryToken = '';
 let uploadMeta = {
     originalBytes: 0,
     compressedBytes: 0,
@@ -40,7 +41,7 @@ let uploadMeta = {
 
 // ---------- Custom event tracking (Meta Pixel trackCustom) ----------
 // Session ID is shared with landing.html via sessionStorage (key `sl_sid`), so a
-// user's full journey Landing → Upload → Pay → Cut Card joins up in Events Manager.
+// user's full journey Landing â†’ Upload â†’ Pay â†’ Cut Card joins up in Events Manager.
 function slSessionId() {
     try {
         let sid = sessionStorage.getItem('sl_sid');
@@ -89,7 +90,7 @@ const FREE_LOOK_LOADING_CAPTIONS = [
     'Finding your next self',
     'Looking for the clean win',
     'Scanning barber potential',
-    'Measuring what s workable',
+    'Measuring what’s workable',
     'Matching shape to style',
     'Seeing what your barber sees',
     'Looking for your easiest win',
@@ -108,7 +109,7 @@ const PAID_LOADING_CAPTIONS = [
     'Finding your next self',
     'Looking for the clean win',
     'Scanning barber potential',
-    'Measuring what s workable',
+    'Measuring what’s workable',
     'Matching shape to style',
     'Seeing what your barber sees',
     'Looking for your easiest win',
@@ -140,7 +141,7 @@ function byId(id) {
 
 function syncViewportHeight() {
     try {
-        // Prefer visualViewport.height — this reflects the ACTUAL visible area
+        // Prefer visualViewport.height â€” this reflects the ACTUAL visible area
         // in iOS Safari (accounting for dynamic toolbar) and in Instagram's
         // in-app webview (where window.innerHeight is often inaccurate).
         const vv = typeof window !== 'undefined' ? window.visualViewport : null;
@@ -545,6 +546,81 @@ function waitForImageLoad(url) {
 
 function hasUsableFreeLook(look) {
     return !!look && typeof look === 'object' && isUsableImageUrl(look.image);
+}
+
+function lookImageUrl(look) {
+    return String(look?.image || look?.image_url || look?.generation?.image_url || '').trim();
+}
+
+function isLookReady(look) {
+    if (!look || typeof look !== 'object') return false;
+    const status = String(look.status || look.generation?.status || '').toLowerCase();
+    if (status === 'failed' || status === 'pending') return false;
+    return isUsableImageUrl(lookImageUrl(look));
+}
+
+function markLookImageFailed(idx, reason = 'Image failed to load') {
+    if (!Array.isArray(results?.looks) || !results.looks[idx]) return;
+    results.looks[idx].status = 'failed';
+    results.looks[idx].error = reason;
+    results.looks[idx].image = '';
+    results.looks[idx].image_url = '';
+    results.looks[idx].generation = Object.assign({}, results.looks[idx].generation || {}, {
+        status: 'failed',
+        image_url: '',
+        error: reason
+    });
+    persistResultsState();
+    renderResults();
+}
+
+function renderPaidRetryCard(idx, extraClass = '') {
+    return `
+        <article class="paid-retry-card ${extraClass}">
+            <div class="paid-retry-title">Look generation paused</div>
+            <p class="paid-retry-copy">Your payment is safe. Retry this look.</p>
+            <button class="paid-retry-btn" type="button" onclick="retryPaidLook(${idx})">RETRY LOOK</button>
+        </article>
+    `;
+}
+
+async function retryPaidLook(idx) {
+    if (isGenerating || !Array.isArray(results?.looks) || !results.looks[idx]) return;
+    if (!paidRetryToken) {
+        showUserError('Retry session expired. Please contact support.');
+        return;
+    }
+
+    isGenerating = true;
+    try {
+        const look = results.looks[idx];
+        const resp = await fetch('/api/retry-paid-look', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                session_id: slSessionId(),
+                retry_token: paidRetryToken,
+                look_index: idx,
+                look_id: look.id || ''
+            })
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data.success) {
+            throw new Error(data.error || 'Unable to retry this look');
+        }
+        if (Array.isArray(data.looks)) {
+            results.looks = normalizeLooks(data.looks);
+        } else if (data.look) {
+            results.looks[idx] = normalizeLooks([data.look])[0] || data.look;
+        }
+        persistResultsState();
+        renderResults();
+    } catch (error) {
+        console.error(error);
+        showUserError(error.message || 'Unable to retry this look');
+    } finally {
+        isGenerating = false;
+    }
 }
 
 function showFreeGenerationRetry(message = 'Generation failed. Please try again.') {
@@ -1232,69 +1308,51 @@ function renderFreeResult() {
 
 function normalizeLooks(rawLooks) {
     const list = Array.isArray(rawLooks) ? rawLooks : [];
-    const looksByTier = {};
+    const normalized = [];
+    const seenTiers = new Set();
 
-    list.forEach((look) => {
-        const tier = String(look?.tier || look?.name || '').toUpperCase();
-        if (!looksByTier[tier]) {
-            looksByTier[tier] = {
-                name: look.full_name || look.name || tier || 'Look',
-                tier,
-                image: look.image || '',
-                match_percentage: Number(look.match_percentage) || 80,
-                achievability: look.achievability || 'ready',
-                vibe: look.vibe || '--',
-                maintenance: look.maintenance || '--',
-                top_length: look.top_length || '--',
-                sides: look.sides || '--',
-                texture: look.texture || '--',
-                products: look.products || '--',
-                styling: look.styling || '--',
-                fringe: look.fringe || '--',
-                look_category: look.look_category || look.tier || '--',
-                achievability_score: look.achievability_score || look.match_percentage || 80,
-                intelligence: look.intelligence || null,
-                stylelock_360: look.stylelock_360 || null,
-                is_stylelock_pick: !!look.is_stylelock_pick
-            };
-        }
+    list.forEach((look, idx) => {
+        const tier = String(look?.tier || look?.name || `LOOK-${idx}`).toUpperCase();
+        if (seenTiers.has(tier) && normalized.length >= 3) return;
+        seenTiers.add(tier);
+        const image = lookImageUrl(look);
+        const status = String(look?.status || look?.generation?.status || (isUsableImageUrl(image) ? 'ready' : 'failed')).toLowerCase();
+        const error = look?.error || look?.generation?.error || '';
+        normalized.push({
+            id: look.id || `${tier.toLowerCase()}-${idx}`,
+            name: look.full_name || look.name || tier || 'Look',
+            full_name: look.full_name || look.name || tier || 'Look',
+            tier,
+            image: status === 'ready' && isUsableImageUrl(image) ? image : '',
+            image_url: status === 'ready' && isUsableImageUrl(image) ? image : '',
+            status,
+            error,
+            generation: Object.assign({}, look.generation || {}, {
+                status,
+                image_url: status === 'ready' && isUsableImageUrl(image) ? image : '',
+                error
+            }),
+            match_percentage: Number(look.match_percentage) || 80,
+            achievability: look.achievability || 'ready',
+            vibe: look.vibe || '--',
+            maintenance: look.maintenance || '--',
+            top_length: look.top_length || '--',
+            sides: look.sides || '--',
+            texture: look.texture || '--',
+            products: look.products || '--',
+            styling: look.styling || '--',
+            fringe: look.fringe || '--',
+            look_category: look.look_category || look.tier || '--',
+            achievability_score: look.achievability_score || look.match_percentage || 80,
+            intelligence: look.intelligence || null,
+            stylelock_360: look.stylelock_360 || null,
+            is_stylelock_pick: !!look.is_stylelock_pick
+        });
     });
 
-    const ordered = [];
-    TIER_ORDER.forEach((tier) => {
-        if (looksByTier[tier]) ordered.push(looksByTier[tier]);
-    });
-
-    list.forEach((look) => {
-        if (ordered.length >= 3) return;
-        const tier = String(look?.tier || look?.name || '').toUpperCase();
-        const exists = ordered.some((x) => x.tier === tier);
-        if (!exists) {
-            ordered.push({
-                name: look.full_name || look.name || tier,
-                tier,
-                image: look.image || '',
-                match_percentage: Number(look.match_percentage) || 80,
-                achievability: look.achievability || 'ready',
-                vibe: look.vibe || '--',
-                maintenance: look.maintenance || '--',
-                top_length: look.top_length || '--',
-                sides: look.sides || '--',
-                texture: look.texture || '--',
-                products: look.products || '--',
-                styling: look.styling || '--',
-                fringe: look.fringe || '--',
-                look_category: look.look_category || look.tier || '--',
-                achievability_score: look.achievability_score || look.match_percentage || 80,
-                intelligence: look.intelligence || null,
-                stylelock_360: look.stylelock_360 || null,
-                is_stylelock_pick: !!look.is_stylelock_pick
-            });
-        }
-    });
-
-    return ordered.slice(0, 3);
+    return normalized.slice(0, 3);
 }
+
 
 async function unlockFullSet(paymentToken) {
     if (isGenerating || !freeLookResult || !paymentToken) return;
@@ -1319,6 +1377,7 @@ async function unlockFullSet(paymentToken) {
             throw new Error(data.error || data.detail || 'Generation failed');
         }
 
+        paidRetryToken = data.retry_token || paidRetryToken || '';
         results = {
             looks: normalizeLooks(data.looks)
         };
@@ -1354,34 +1413,99 @@ function tierClass(tier) {
     return 'tier-trending';
 }
 
-function getLookIntelligence(look) {
-    return look && typeof look.intelligence === 'object' ? look.intelligence : null;
+// ============================================================================
+// CutLogic Read — proprietary recommendation panel.
+// Vision observes. CutLogic decides. The Read tells the user *what to do*,
+// not what their face looks like.
+// ============================================================================
+
+function getLookCutlogic(look) {
+    if (!look) return null;
+    if (typeof look.cutlogic === 'object' && look.cutlogic) return look.cutlogic;
+    if (typeof look.intelligence === 'object' && look.intelligence) return look.intelligence;
+    return null;
 }
 
-function intelligenceTags(look, limit = 4) {
-    const intel = getLookIntelligence(look);
-    const tags = Array.isArray(intel?.tags) ? intel.tags : [];
+// Legacy shim so any older caller still works.
+function getLookIntelligence(look) { return getLookCutlogic(look); }
+
+function cutlogicShortTags(look, limit = 3) {
+    const c = getLookCutlogic(look);
+    if (!c) return [];
+    const tags = Array.isArray(c.short_tags) ? c.short_tags
+        : Array.isArray(c.tags) ? c.tags : [];
     return tags.filter(Boolean).slice(0, limit);
 }
 
-function renderMiniIntelligenceTag(look) {
-    const tag = intelligenceTags(look, 1)[0];
-    return tag ? `<div class="mini-intel-tag">${safeText(tag)}</div>` : '';
+function intelligenceTags(look, limit = 3) {
+    // Backward-compat name; routes through CutLogic.
+    return cutlogicShortTags(look, limit);
 }
 
-function renderIntelligencePanel(look) {
-    const intel = getLookIntelligence(look);
-    if (!intel) return '';
-    const tags = intelligenceTags(look, 5).map((tag) => `<span>${safeText(tag)}</span>`).join('');
+function renderMiniCutlogicTag(look) {
+    // On the results grid each card shows one chip — prefer the role label
+    // so the user immediately reads *why this look is here*.
+    const c = getLookCutlogic(look);
+    const role = c && typeof c.recommendation_role === 'string' ? c.recommendation_role : '';
+    const fallback = cutlogicShortTags(look, 1)[0] || '';
+    const label = role || fallback;
+    return label ? `<div class="mini-intel-tag">${safeText(label)}</div>` : '';
+}
+
+// Legacy alias used in earlier renders.
+function renderMiniIntelligenceTag(look) { return renderMiniCutlogicTag(look); }
+
+function renderCutlogicPanel(look) {
+    const c = getLookCutlogic(look);
+    if (!c) return '';
+
+    // Fallbacks — never show blank/null fields in the UI.
+    const headline = safeText(c.headline, 'Best low-risk upgrade');
+    const role = safeText(c.recommendation_role, 'StyleLock Pick');
+    const why = safeText(c.why_this_wins, 'A cleaner, sharper version of your current look — without making the change feel forced.');
+    const watchout = safeText(c.barber_watchout, 'Keep the top textured. Avoid cutting it too short.');
+
+    const achLabel = safeText(c.achievable_now?.label, 'Achievable now');
+    const achScore = (c.achievable_now?.score != null) ? `${c.achievable_now.score}%` : '';
+    const growth = safeText(c.growth_needed?.label, 'None');
+    const cutRisk = safeText(c.cut_risk?.label, 'Low–Medium');
+    const maint = safeText(c.maintenance?.label, 'Low–Medium');
+    const transformation = safeText(c.transformation_level?.label, 'Noticeable shift');
+
+    // Chips: role first (the decision), then 2 short tags. Cap at 3.
+    const chipsArr = [role, ...cutlogicShortTags(look, 2).filter(t => t !== role)].slice(0, 3);
+    const chips = chipsArr.map((t) => `<span class="cutlogic-chip">${safeText(t)}</span>`).join('');
+
+    // Stat grid — five compact label/value cells.
+    const stats = `
+        <div class="cutlogic-stat"><div class="cutlogic-stat-label">Achievable now</div><div class="cutlogic-stat-value">${achScore ? achScore + ' · ' : ''}${achLabel}</div></div>
+        <div class="cutlogic-stat"><div class="cutlogic-stat-label">Growth needed</div><div class="cutlogic-stat-value">${growth}</div></div>
+        <div class="cutlogic-stat"><div class="cutlogic-stat-label">Cut risk</div><div class="cutlogic-stat-value">${cutRisk}</div></div>
+        <div class="cutlogic-stat"><div class="cutlogic-stat-label">Maintenance</div><div class="cutlogic-stat-value">${maint}</div></div>
+        <div class="cutlogic-stat"><div class="cutlogic-stat-label">Transformation</div><div class="cutlogic-stat-value">${transformation}</div></div>
+    `;
+
     return `
-        <section class="stylelock-intel-panel">
-            <div class="stylelock-intel-kicker">STYLELOCK INTELLIGENCE</div>
-            <div class="stylelock-intel-score">${safeText(intel.achievability_label, `${look.achievability_score || look.match_percentage || 80}% achievable now`)}</div>
-            <div class="stylelock-intel-tags">${tags}</div>
-            <p class="stylelock-intel-line">${safeText(intel.recommendation, 'Recommended because it fits your current face shape, density, and growth pattern.')}</p>
+        <section class="cutlogic-panel">
+            <div class="cutlogic-eyebrow">POWERED BY STYLELOCK CUTLOGIC&trade;</div>
+            <div class="cutlogic-title">CUTLOGIC READ</div>
+            <div class="cutlogic-headline">${headline}</div>
+            <div class="cutlogic-chips">${chips}</div>
+            <div class="cutlogic-stats">${stats}</div>
+            <div class="cutlogic-section">
+                <div class="cutlogic-section-label">WHY THIS WINS</div>
+                <p class="cutlogic-section-body">${why}</p>
+            </div>
+            <div class="cutlogic-section">
+                <div class="cutlogic-section-label">BARBER WATCHOUT</div>
+                <p class="cutlogic-section-body cutlogic-watchout">${watchout}</p>
+            </div>
         </section>
     `;
 }
+
+// Legacy alias — older callers still resolve via this name.
+function renderIntelligencePanel(look) { return renderCutlogicPanel(look); }
 
 function renderStyleLock360(look) {
     const preview = look?.stylelock_360;
@@ -1449,45 +1573,51 @@ function renderResults() {
     slTrack('looks_shown', { count: looks.length });
     slTrack('paid_results_viewed', { count: looks.length });
 
-    const heroIdx = getMostAchievableIndex(looks);
-    const heroLook = looks[heroIdx];
+    const readyEntries = looks.map((look, idx) => ({ look, idx })).filter((entry) => isLookReady(entry.look));
+    const readyHeroOffset = readyEntries.length ? getMostAchievableIndex(readyEntries.map((entry) => entry.look)) : 0;
+    const heroEntry = readyEntries[readyHeroOffset] || { look: looks[0], idx: 0 };
+    const actualHeroIdx = heroEntry.idx;
+    const heroLook = heroEntry.look;
     const supportingLooks = looks
         .map((item, idx) => ({ item, idx }))
-        .filter((entry) => entry.idx !== heroIdx)
+        .filter((entry) => entry.idx !== actualHeroIdx)
         .sort((a, b) => (Number(b.item.match_percentage) || 0) - (Number(a.item.match_percentage) || 0))
         .slice(0, 2);
-    const readinessMap = buildReadinessMap(looks, heroIdx);
+    const readinessMap = buildReadinessMap(looks, actualHeroIdx);
 
     const heroPct = Math.max(70, Math.min(99, Number(heroLook.match_percentage) || 80));
-    const heroImageMarkup = heroLook.image
-        ? `<img class="slide-image" src="${escapeHtml(heroLook.image)}" alt="${escapeHtml(heroLook.name)}">`
-        : `<div class="slide-image-placeholder">Look preview unavailable.<br>Use this cut card for your barber.</div>`;
+    const heroImageMarkup = isLookReady(heroLook)
+        ? `<img class="slide-image" src="${escapeHtml(lookImageUrl(heroLook))}" alt="${escapeHtml(heroLook.name)}" onerror="markLookImageFailed(${actualHeroIdx})">`
+        : renderPaidRetryCard(actualHeroIdx, 'hero-retry');
 
     byId('resultsCarousel').innerHTML = `
         <div class="results-board">
             <article class="slide-card hero-card ${tierClass(heroLook.tier)}">
                 <div class="slide-image-wrap">
                     ${heroImageMarkup}
-                    <div class="achievable-badge">STYLELOCK PICK</div>
-                    <div class="match-badge"><span class="pct">${heroPct}%</span><span class="copy">MATCH</span></div>
-                    <div class="slide-note">${getTierNote(heroLook.tier)}</div>
+                    ${isLookReady(heroLook) ? `
+                        <div class="achievable-badge">STYLELOCK PICK</div>
+                        <div class="match-badge"><span class="pct">${heroPct}%</span><span class="copy">MATCH</span></div>
+                        <div class="slide-note">${getTierNote(heroLook.tier)}</div>
+                    ` : ''}
                 </div>
                 <div class="slide-tier">
                     <div class="slide-tier-row">
                         <div class="slide-tier-name">${safeText(heroLook.tier, 'LOOK')}</div>
-                        <div class="readiness-tag readiness-hero">${safeText(readinessMap[heroIdx], 'Ready now')}</div>
-                        ${renderMiniIntelligenceTag(heroLook)}
+                        <div class="readiness-tag readiness-hero">${safeText(readinessMap[actualHeroIdx], 'Ready now')}</div>
+                        ${isLookReady(heroLook) ? renderMiniIntelligenceTag(heroLook) : ''}
                     </div>
                 </div>
-                <button class="btn-select hero-cta" onclick="lockLook(${heroIdx})">LOCK THIS LOOK</button>
+                <button class="btn-select hero-cta" onclick="lockLook(${actualHeroIdx})" ${isLookReady(heroLook) ? '' : 'disabled'}>LOCK THIS LOOK</button>
             </article>
 
             <div class="results-support-grid">
                 ${supportingLooks.map((support) => {
+                    if (!isLookReady(support.item)) {
+                        return renderPaidRetryCard(support.idx, `support-card ${tierClass(support.item.tier)}`);
+                    }
                     const supportPct = Math.max(70, Math.min(99, Number(support.item.match_percentage) || 80));
-                    const supportImage = support.item.image
-                        ? `<img class="support-card-image" src="${escapeHtml(support.item.image)}" alt="${escapeHtml(support.item.name)}">`
-                        : `<div class="slide-image-placeholder">Preview pending</div>`;
+                    const supportImage = `<img class="support-card-image" src="${escapeHtml(lookImageUrl(support.item))}" alt="${escapeHtml(support.item.name)}" onerror="markLookImageFailed(${support.idx})">`;
                     return `
                         <article class="support-card ${tierClass(support.item.tier)}">
                             <div class="support-card-image-wrap">
@@ -1513,6 +1643,7 @@ function renderResults() {
     show('resultsScreen');
 }
 
+
 function goSlide(nextIdx, skipCueUpdate = false) {
     if (RESULTS_STATIC_BOARD) return;
     const looks = results?.looks || [];
@@ -1533,6 +1664,10 @@ function selectLook(idx) {
         bootToHome();
         return;
     }
+    if (!isLookReady(look)) {
+        retryPaidLook(idx);
+        return;
+    }
     openLockedPreview(idx, false);
 }
 
@@ -1551,6 +1686,10 @@ function lockLook(idx) {
         bootToHome();
         return;
     }
+    if (!isLookReady(look)) {
+        retryPaidLook(idx);
+        return;
+    }
     openLockedPreview(idx, true);
 }
 
@@ -1558,6 +1697,10 @@ function renderCutcard(idx) {
     const look = results?.looks?.[idx];
     if (!look) {
         bootToHome();
+        return;
+    }
+    if (!isLookReady(look)) {
+        retryPaidLook(idx);
         return;
     }
 
@@ -1642,15 +1785,20 @@ function openLockedPreview(idx, showStamp) {
         bootToHome();
         return;
     }
+    if (!isLookReady(look)) {
+        retryPaidLook(idx);
+        return;
+    }
 
     currentLookIdx = idx;
     // The LOCKED badge should only appear on the hero look (MOST ACHIEVABLE / TRENDING).
-    // On secondary expanded views (CLEAN / BOLD), the badge is visually redundant —
+    // On secondary expanded views (CLEAN / BOLD), the badge is visually redundant â€”
     // all three looks are already paid for at this point in the flow.
     const heroIdx = Array.isArray(results?.looks) ? getMostAchievableIndex(results.looks) : 0;
     const isHero = idx === heroIdx;
     lockedStampVisible = !!showStamp && isHero;
-    byId('lockedPhoto').src = look.image || '';
+    byId('lockedPhoto').src = lookImageUrl(look);
+    byId('lockedPhoto').onerror = () => markLookImageFailed(idx);
     persistResultsState();
 
     const lockedBadge = document.querySelector('.locked-badge');
@@ -1665,7 +1813,7 @@ function openLockedPreview(idx, showStamp) {
         const panelHtml = `${intelligenceHtml}${preview360Html}`;
         panel.innerHTML = panelHtml;
         panel.hidden = !panelHtml.trim();
-        if (intelligenceHtml.trim()) slTrack('intelligence_panel_viewed', { look: slLookTier(idx), idx });
+        if (intelligenceHtml.trim()) slTrack('cutlogic_read_viewed', { look: slLookTier(idx), idx });
         if (preview360Html.trim()) slTrack('360_viewed', { look: slLookTier(idx), idx });
     }
     show('lockedScreen');
@@ -1687,7 +1835,7 @@ function showBarber() {
             ${look.image ? `<img class="barber-photo" src="${escapeHtml(look.image)}" alt="${escapeHtml(look.name)}">` : `<div class="slide-image-placeholder">Preview unavailable</div>`}
             <div class="barber-rows">
                 <div class="barber-row"><div class="barber-label">ASK FOR THIS</div><div class="barber-value">${safeText(look.name, safeText(look.tier, 'Look'))}</div></div>
-                <div class="barber-row"><div class="barber-label">AVOID THIS</div><div class="barber-value">Over-thinning or over-slicking</div></div>
+                <div class="barber-row"><div class="barber-label">AVOID THIS</div><div class="barber-value">${safeText(getLookCutlogic(look)?.barber_watchout, 'Over-thinning or over-slicking')}</div></div>
                 <div class="barber-row"><div class="barber-label">SIDES</div><div class="barber-value">${safeText(look.sides)}</div></div>
                 <div class="barber-row"><div class="barber-label">TOP</div><div class="barber-value">${safeText(look.top_length)}</div></div>
                 <div class="barber-row"><div class="barber-label">TEXTURE</div><div class="barber-value">${safeText(look.texture)}</div></div>
@@ -1916,7 +2064,7 @@ function bindEvents() {
                 throw new Error(data.error || 'Unable to join waitlist');
             }
             status.hidden = false;
-            status.textContent = 'You’re on the list. We’ll email you tomorrow.';
+            status.textContent = 'Youâ€™re on the list. Weâ€™ll email you tomorrow.';
         } catch (error) {
             status.hidden = false;
             status.textContent = error.message || 'Unable to save your email right now.';
@@ -2013,7 +2161,7 @@ window.addEventListener('orientationchange', () => {
 });
 
 // visualViewport fires for iOS Safari toolbar show/hide and for Instagram
-// webview keyboard/chrome transitions — window.resize does NOT fire for these.
+// webview keyboard/chrome transitions â€” window.resize does NOT fire for these.
 if (typeof window !== 'undefined' && window.visualViewport) {
     window.visualViewport.addEventListener('resize', syncViewportHeight, { passive: true });
 }
