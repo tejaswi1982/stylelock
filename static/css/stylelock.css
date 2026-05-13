@@ -1700,6 +1700,39 @@ body::before {
     }
 }
 
+/* ============================================================
+   CUTLOGIC™ branding micro-lines — surfaces across screens
+   Free result · Paid results · Barber Mode
+   Small, premium, lime-tinted; never overpowers the CTAs.
+   ============================================================ */
+.cutlogic-credit {
+    margin-top: 4px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(225, 247, 110, 0.78);
+}
+
+.results-cutlogic-credit {
+    margin: 6px 0 0;
+    font-family: 'Space Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(225, 247, 110, 0.78);
+}
+
+.barber-cutlogic-line {
+    margin: 6px 16px 4px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(225, 247, 110, 0.72);
+    text-align: center;
+}
+
 .stylelock-360-frame {
     width: 100%;
     aspect-ratio: 4 / 5;
