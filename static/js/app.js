@@ -1296,6 +1296,7 @@ function renderFreeResult() {
                 </div>
                 <div class="free-result-name">${safeText(freeLookResult.name)}</div>
                 <div class="free-result-intel-line">Chosen for your face and hair.</div>
+                <div class="cutlogic-credit">Chosen by StyleLock CutLogic&trade;</div>
             </div>
         </article>
     `;
@@ -1456,13 +1457,14 @@ function renderMiniCutlogicTag(look) {
 function renderMiniIntelligenceTag(look) { return renderMiniCutlogicTag(look); }
 
 function renderCutlogicPanel(look) {
-    const c = getLookCutlogic(look);
-    if (!c) return '';
+    // Always render the panel — even when CutLogic metadata is missing we
+    // surface the proprietary branding with safe defaults. Never blank.
+    const c = getLookCutlogic(look) || {};
 
     // Fallbacks — never show blank/null fields in the UI.
-    const headline = safeText(c.headline, 'Best low-risk upgrade');
+    const headline = safeText(c.headline, 'Best achievable move');
     const role = safeText(c.recommendation_role, 'StyleLock Pick');
-    const why = safeText(c.why_this_wins, 'A cleaner, sharper version of your current look — without making the change feel forced.');
+    const why = safeText(c.why_this_wins, 'This gives a cleaner, sharper version of your current look without making the change feel forced.');
     const watchout = safeText(c.barber_watchout, 'Keep the top textured. Avoid cutting it too short.');
 
     const achLabel = safeText(c.achievable_now?.label, 'Achievable now');
